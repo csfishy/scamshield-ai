@@ -1,25 +1,26 @@
-# Environment and local secrets
+# Environment
 .env
 .env.*
 !.env.example
 
-# Operating system files
+# OS
 .DS_Store
 Thumbs.db
 
-# IDE settings
+# IDE
 .vs/
 .idea/
+.vscode/
 
-# Common build artifacts
+# .NET
 bin/
 obj/
-dist/
-build/
-
-# User-specific project files
 *.user
 *.suo
 
-# JavaScript dependencies
+# JavaScript
 node_modules/
+
+# Build output
+dist/
+build/
