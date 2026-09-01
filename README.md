@@ -39,6 +39,8 @@ Screenshot / Image
 
 - [Product Plan](docs/product-plan.md)
 - [Buildmode 3-Day MVP Plan](docs/buildmode-mvp-plan.md)
+- [MVP Architecture](docs/architecture.md)
+- [API Contract](docs/api-contract.md)
 
 ## MVP Principle
 
