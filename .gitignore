@@ -1,0 +1,25 @@
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vs/
+.idea/
+
+# Common build artifacts
+bin/
+obj/
+dist/
+build/
+
+# User-specific project files
+*.user
+*.suo
+
+# JavaScript dependencies
+node_modules/
