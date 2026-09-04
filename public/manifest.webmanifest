@@ -1,0 +1,27 @@
+{
+  "name": "ScamShield AI｜截圖防詐分析",
+  "short_name": "ScamShield",
+  "description": "整理可疑截圖中的風險訊號、原因與建議行動。",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eef8f6",
+  "theme_color": "#0b6e69",
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

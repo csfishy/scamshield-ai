@@ -1,12 +1,15 @@
 import { test, expect } from "@playwright/test";
 import sharp from "sharp";
-test("production minimal shell and actual /analyze boundary", async ({
+test("production UI shell and actual /analyze boundary", async ({
   page,
   request,
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "ScamShield AI" }),
+    page.getByRole("heading", { name: "可疑截圖，先交給 AI 看看" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("本機 Demo", { exact: true }).first(),
   ).toBeVisible();
   const method = await request.get("/analyze");
   expect(method.status()).toBe(405);

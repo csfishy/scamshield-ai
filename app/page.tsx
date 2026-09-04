@@ -1,9 +1,20 @@
+import {
+  AnalysisWorkspace,
+  type AnalysisMode,
+} from "@/components/analysis/AnalysisWorkspace";
+
+export const dynamic = "force-dynamic";
+
+function publicAnalysisMode(): AnalysisMode {
+  const value = process.env.ANALYSIS_MODE ?? "mock";
+  if (value !== "mock" && value !== "remote") {
+    throw new Error("ANALYSIS_MODE must be mock or remote");
+  }
+  return value;
+}
+
 export default function Home() {
   return (
-    <main>
-      <h1>ScamShield AI</h1>
-      <p>截圖風險輔助判斷。正式操作介面準備中。</p>
-      <p>風險指標不是詐騙機率，低風險不代表安全保證。</p>
-    </main>
+    <AnalysisWorkspace initialMode={publicAnalysisMode()} timeoutMs={25_000} />
   );
 }
