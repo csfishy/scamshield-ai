@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="ScamShield.App.Views.ResultPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ScamShield.App.ViewModels"
+    x:DataType="vm:ResultViewModel"
+    Title="分析結果">
+    <ScrollView>
+        <VerticalStackLayout Padding="24,28,24,40" Spacing="18">
+            <Border
+                Padding="24"
+                BackgroundColor="{Binding RiskColor}"
+                Stroke="Transparent"
+                StrokeShape="RoundRectangle 22">
+                <VerticalStackLayout Spacing="4">
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="19"
+                        Text="{Binding RiskLevelDisplay}"
+                        TextColor="White" />
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="42"
+                        Text="{Binding RiskScoreDisplay}"
+                        TextColor="White" />
+                    <Label
+                        FontSize="13"
+                        Text="風險分數"
+                        TextColor="#F4F4F4" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border
+                Padding="18"
+                BackgroundColor="White"
+                Stroke="#D7E7E5"
+                StrokeShape="RoundRectangle 18">
+                <VerticalStackLayout Spacing="10">
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="13"
+                        Text="詐騙類型"
+                        TextColor="{StaticResource MutedTextColor}" />
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="21"
+                        Text="{Binding CategoryDisplay}" />
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="13"
+                        Margin="0,8,0,0"
+                        Text="分析摘要"
+                        TextColor="{StaticResource MutedTextColor}" />
+                    <Label
+                        FontSize="17"
+                        LineBreakMode="WordWrap"
+                        Text="{Binding Summary}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label
+                FontAttributes="Bold"
+                FontSize="22"
+                Text="可疑訊號" />
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Signals}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SignalDisplayItem">
+                        <Border
+                            Margin="0,0,0,10"
+                            Padding="16"
+                            BackgroundColor="White"
+                            Stroke="#D7E7E5"
+                            StrokeShape="RoundRectangle 14">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Border
+                                    Padding="9,5"
+                                    BackgroundColor="{Binding SeverityColor}"
+                                    Stroke="Transparent"
+                                    StrokeShape="RoundRectangle 10"
+                                    VerticalOptions="Start">
+                                    <Label
+                                        FontAttributes="Bold"
+                                        FontSize="12"
+                                        Text="{Binding SeverityDisplay}"
+                                        TextColor="White" />
+                                </Border>
+                                <Label
+                                    Grid.Column="1"
+                                    FontSize="16"
+                                    LineBreakMode="WordWrap"
+                                    Text="{Binding Reason}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Label
+                FontAttributes="Bold"
+                FontSize="22"
+                Text="建議行動" />
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Recommendations}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="{x:Type x:String}">
+                        <Grid
+                            Margin="0,0,0,12"
+                            ColumnDefinitions="Auto,*"
+                            ColumnSpacing="12">
+                            <Label
+                                FontAttributes="Bold"
+                                FontSize="19"
+                                Text="✓"
+                                TextColor="{StaticResource PrimaryColor}" />
+                            <Label
+                                Grid.Column="1"
+                                FontSize="16"
+                                LineBreakMode="WordWrap"
+                                Text="{Binding .}" />
+                        </Grid>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Button
+                Clicked="OnAnalyzeAnotherClicked"
+                Text="分析另一張圖片" />
+            <Label
+                FontSize="12"
+                HorizontalTextAlignment="Center"
+                Text="請勿僅依此結果做出金融決定；請透過官方網站或官方 App 查證。"
+                TextColor="{StaticResource MutedTextColor}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

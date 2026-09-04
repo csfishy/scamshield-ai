@@ -36,6 +36,24 @@ const string mockJson = """
     }
     """;
 
+Assert(
+    ImageFileValidator.DetectContentType("sample.jpg", [0xFF, 0xD8, 0xFF]) == "image/jpeg",
+    "JPEG signature validation failed.");
+Assert(
+    ImageFileValidator.DetectContentType(
+        "sample.png",
+        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) == "image/png",
+    "PNG signature validation failed.");
+AssertThrows<ImageValidationException>(
+    () => ImageFileValidator.DetectContentType("sample.gif", [0x47, 0x49, 0x46]),
+    "Unsupported image format was accepted.");
+AssertThrows<ImageValidationException>(
+    () => ImageFileValidator.EnsureValidSize(0),
+    "Empty image was accepted.");
+AssertThrows<ImageValidationException>(
+    () => ImageFileValidator.EnsureValidSize(ImageFileValidator.MaximumImageSizeBytes + 1),
+    "Oversized image was accepted.");
+
 var deserialized = ContractJson.DeserializeResult(mockJson);
 Assert(deserialized.RiskScore == 88, "riskScore did not deserialize.");
 Assert(deserialized.RiskLevel == RiskLevel.High, "riskLevel did not deserialize.");
@@ -114,6 +132,27 @@ catch (ScamAnalysisServiceException exception)
     Assert(exception.Retryable, "API retryable flag was not preserved.");
 }
 
+var timeoutService = new RemoteScamAnalysisService(
+    new HttpClient(new TimeoutHttpMessageHandler())
+    {
+        BaseAddress = new Uri("https://example.test/")
+    },
+    TimeSpan.FromMilliseconds(20));
+
+try
+{
+    await timeoutService.AnalyzeAsync(
+        new MemoryStream([0xFF, 0xD8, 0xFF]),
+        "sample.jpg",
+        "image/jpeg");
+    throw new InvalidOperationException("Remote timeout was not surfaced.");
+}
+catch (ScamAnalysisServiceException exception)
+{
+    Assert(exception.Code == "provider_unavailable", "Timeout used the wrong error code.");
+    Assert(exception.Retryable, "Timeout must be retryable.");
+}
+
 try
 {
     ContractJson.DeserializeResult(mockJson.Replace("\"high\"", "\"critical\"", StringComparison.Ordinal));
@@ -123,7 +162,8 @@ catch (JsonException)
 {
 }
 
-Console.WriteLine("Contract checks passed: JSON, mock delay, multipart request, and API errors.");
+Console.WriteLine(
+    "Contract checks passed: JSON, image validation, mock delay, multipart request, API errors, and timeout.");
 
 static string? GetPartName(HttpContent content)
 {
@@ -146,6 +186,21 @@ static void Assert(bool condition, string message)
     }
 }
 
+static void AssertThrows<TException>(Action action, string message)
+    where TException : Exception
+{
+    try
+    {
+        action();
+    }
+    catch (TException)
+    {
+        return;
+    }
+
+    throw new InvalidOperationException(message);
+}
+
 file sealed class StubHttpMessageHandler(
     Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler
 {
@@ -154,5 +209,16 @@ file sealed class StubHttpMessageHandler(
         CancellationToken cancellationToken)
     {
         return handler(request);
+    }
+}
+
+file sealed class TimeoutHttpMessageHandler : HttpMessageHandler
+{
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        throw new InvalidOperationException("The infinite delay completed unexpectedly.");
     }
 }

@@ -10,6 +10,7 @@
     <Compile Include="..\ScamShield.App\Configuration\ScamShieldOptions.cs" Link="Configuration\ScamShieldOptions.cs" />
     <Compile Include="..\ScamShield.App\Models\*.cs" Link="Models\%(Filename)%(Extension)" />
     <Compile Include="..\ScamShield.App\Services\IScamAnalysisService.cs" Link="Services\IScamAnalysisService.cs" />
+    <Compile Include="..\ScamShield.App\Services\ImageFileValidator.cs" Link="Services\ImageFileValidator.cs" />
     <Compile Include="..\ScamShield.App\Services\MockScamAnalysisService.cs" Link="Services\MockScamAnalysisService.cs" />
     <Compile Include="..\ScamShield.App\Services\RemoteScamAnalysisService.cs" Link="Services\RemoteScamAnalysisService.cs" />
     <Compile Include="..\ScamShield.App\Services\ScamAnalysisServiceException.cs" Link="Services\ScamAnalysisServiceException.cs" />

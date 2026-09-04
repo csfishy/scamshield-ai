@@ -9,8 +9,6 @@ namespace ScamShield.App.ViewModels;
 
 public sealed class MainViewModel : INotifyPropertyChanged
 {
-    private const long MaximumImageSizeBytes = 10 * 1024 * 1024;
-
     private readonly IScamAnalysisService _analysisService;
     private readonly AsyncCommand _selectImageCommand;
     private readonly AsyncCommand _analyzeCommand;
@@ -124,7 +122,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             var imageBytes = await ReadImageAsync(file);
-            var detectedContentType = ValidateImage(file.FileName, imageBytes);
+            var detectedContentType = ImageFileValidator.DetectContentType(
+                file.FileName,
+                imageBytes);
 
             _selectedImageBytes = imageBytes;
             _selectedFileName = file.FileName;
@@ -138,7 +138,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanAnalyze));
             RefreshCommands();
         }
-        catch (ImageSelectionException exception)
+        catch (ImageValidationException exception)
         {
             SetError(exception.Message, retryable: false);
         }
@@ -220,50 +220,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 break;
             }
 
-            if (output.Length + bytesRead > MaximumImageSizeBytes)
+            if (output.Length + bytesRead > ImageFileValidator.MaximumImageSizeBytes)
             {
-                throw new ImageSelectionException("圖片大小不可超過 10 MiB。請選擇較小的圖片。");
+                throw new ImageValidationException("圖片大小不可超過 10 MiB。請選擇較小的圖片。");
             }
 
             await output.WriteAsync(buffer.AsMemory(0, bytesRead));
         }
 
-        if (output.Length == 0)
-        {
-            throw new ImageSelectionException("選擇的圖片是空白檔案，請改選其他圖片。");
-        }
+        ImageFileValidator.EnsureValidSize(output.Length);
 
         return output.ToArray();
-    }
-
-    private static string ValidateImage(string fileName, byte[] imageBytes)
-    {
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var isJpeg = imageBytes.Length >= 3
-            && imageBytes[0] == 0xFF
-            && imageBytes[1] == 0xD8
-            && imageBytes[2] == 0xFF;
-        var isPng = imageBytes.Length >= 8
-            && imageBytes[0] == 0x89
-            && imageBytes[1] == 0x50
-            && imageBytes[2] == 0x4E
-            && imageBytes[3] == 0x47
-            && imageBytes[4] == 0x0D
-            && imageBytes[5] == 0x0A
-            && imageBytes[6] == 0x1A
-            && imageBytes[7] == 0x0A;
-
-        if (isJpeg && extension is ".jpg" or ".jpeg")
-        {
-            return "image/jpeg";
-        }
-
-        if (isPng && extension == ".png")
-        {
-            return "image/png";
-        }
-
-        throw new ImageSelectionException("僅支援副檔名與內容一致的 JPEG 或 PNG 圖片。");
     }
 
     private static string FormatFileSize(long byteCount)
@@ -308,6 +275,4 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
-
-    private sealed class ImageSelectionException(string message) : Exception(message);
 }

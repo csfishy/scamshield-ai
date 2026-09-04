@@ -3,33 +3,116 @@
     x:Class="ScamShield.App.Views.MainPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ScamShield.App.ViewModels"
+    x:DataType="vm:MainViewModel"
     Title="ScamShield AI">
     <ScrollView>
-        <VerticalStackLayout Padding="24,36" Spacing="18">
+        <VerticalStackLayout Padding="24,30,24,40" Spacing="18">
             <Label
                 FontAttributes="Bold"
                 FontSize="30"
                 Text="ScamShield AI" />
             <Label
                 FontSize="18"
-                Text="上傳可疑截圖，在採取行動前多一次風險確認。" />
+                LineBreakMode="WordWrap"
+                Text="上傳可疑截圖，在點擊連結、付款或提供資料前，多一次風險確認。" />
+
             <Border
-                Padding="24"
+                Padding="10,6"
+                BackgroundColor="#DDF3F0"
+                HorizontalOptions="Start"
+                Stroke="Transparent"
+                StrokeShape="RoundRectangle 12">
+                <Label
+                    FontAttributes="Bold"
+                    FontSize="12"
+                    Text="{Binding ModeDisplay}"
+                    TextColor="{StaticResource PrimaryDarkColor}" />
+            </Border>
+
+            <Border
+                Padding="18"
                 BackgroundColor="White"
                 Stroke="#B8D8D5"
                 StrokeShape="RoundRectangle 20">
-                <VerticalStackLayout Spacing="12">
+                <VerticalStackLayout Spacing="14">
                     <Label
                         FontAttributes="Bold"
                         FontSize="20"
-                        HorizontalTextAlignment="Center"
-                        Text="選擇一張 JPEG 或 PNG 截圖" />
+                        Text="1. 選擇可疑截圖" />
+
+                    <Border
+                        HeightRequest="260"
+                        IsVisible="{Binding HasSelectedImage}"
+                        Stroke="#D7E7E5"
+                        StrokeShape="RoundRectangle 14">
+                        <Image
+                            Aspect="AspectFit"
+                            Source="{Binding PreviewSource}" />
+                    </Border>
+
                     <Label
                         HorizontalTextAlignment="Center"
-                        Text="圖片選擇與分析流程將在下一個 milestone 啟用。"
+                        Text="{Binding SelectedFileDetails}"
                         TextColor="{StaticResource MutedTextColor}" />
+
+                    <Button
+                        BackgroundColor="#E7F4F2"
+                        Command="{Binding SelectImageCommand}"
+                        Text="選擇 JPEG / PNG"
+                        TextColor="{StaticResource PrimaryDarkColor}" />
                 </VerticalStackLayout>
             </Border>
+
+            <Border
+                Padding="18"
+                BackgroundColor="#EAF5FF"
+                IsVisible="{Binding IsBusy}"
+                Stroke="#B2D7F0"
+                StrokeShape="RoundRectangle 16">
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="12">
+                    <ActivityIndicator
+                        Color="{StaticResource PrimaryColor}"
+                        IsRunning="{Binding IsBusy}" />
+                    <Label
+                        FontAttributes="Bold"
+                        Text="正在分析可疑訊號…"
+                        VerticalTextAlignment="Center" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Button
+                Command="{Binding AnalyzeCommand}"
+                IsEnabled="{Binding CanAnalyze}"
+                Text="2. 開始分析" />
+
+            <Border
+                Padding="16"
+                BackgroundColor="#FFF2F0"
+                IsVisible="{Binding HasError}"
+                Stroke="#FDA29B"
+                StrokeShape="RoundRectangle 16">
+                <VerticalStackLayout Spacing="12">
+                    <Label
+                        FontAttributes="Bold"
+                        Text="暫時無法完成分析"
+                        TextColor="#B42318" />
+                    <Label
+                        LineBreakMode="WordWrap"
+                        Text="{Binding ErrorMessage}" />
+                    <Button
+                        BackgroundColor="#B42318"
+                        Command="{Binding RetryCommand}"
+                        IsVisible="{Binding CanRetry}"
+                        Text="再試一次" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label
+                FontSize="12"
+                HorizontalTextAlignment="Center"
+                Text="分析結果僅供風險輔助；涉及付款或帳戶資料時，請改由官方管道查證。"
+                TextColor="{StaticResource MutedTextColor}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
