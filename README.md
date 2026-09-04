@@ -1,144 +1,122 @@
 # ScamShield AI
 
-AI-powered scam risk detection for screenshots and suspicious digital content.
+以可疑截圖提供詐騙風險、原因與安全行動建議的 Web／PWA 專案。
 
-> 目前已完成 Buildmode MVP 的 Web/PWA App skeleton；Backend 與實際 AI Provider 尚待實作。App 可先以 Mock mode 獨立展示完整分析流程。
+> **目前：Next.js＋TypeScript Backend 已建立，舊 Blazor Mock 保留。**
+> 2026-09-04：shared contract v2、圖片驗證、POST /analyze、OpenAI adapter 與本機測試已實作。
+> **真實 AI 評估、Vercel Preview、A 正式 UI／PWA 尚未驗收；整體 MVP 未完成。**
+> 實際證據與阻塞見 [B 進度](docs/backend-progress.md)；A 引用方式見 [整合交接](docs/backend-handoff.md)。
 
-## 問題與目標
+## 產品目標
 
-使用者收到詐騙訊息時，往往不一定意識到自己需要查證。風險通常發生在點擊可疑網址、提供 OTP、匯款或交付敏感資訊之前，但現有防詐流程常需要使用者主動搜尋與比對。
+使用者在點擊可疑網址、付款或提供 OTP 前，選擇一張截圖並主動提交，
+取得風險指標、可疑原因與下一步。結果屬輔助判斷，不保證能確定是否詐騙。
 
-ScamShield AI 的目標，是讓使用者提交可疑的截圖或圖片，由 AI 進行詐騙風險分析，提供風險、原因與建議安全行動，協助使用者在採取高風險操作前多一次低摩擦的確認。分析結果僅供風險輔助，不保證能絕對判定詐騙。
+目標流程：選圖 → 預覽／傳輸告知 → 真實 AI → 風險／原因／行動；
+證據不足顯示無法判斷，失敗提供適當換圖或手動重試。
 
-```text
-Screenshot / Image
-→ AI Scam Analysis
-→ Risk
-→ Reasons
-→ Recommended Actions
-```
+## 現況與目標技術
 
-## 核心功能
-
-- 瀏覽器圖片選擇與 preview（JPEG／PNG）
-- Responsive Web UI，可由支援的行動瀏覽器安裝為 PWA
-- Multimodal AI 詐騙風險分析 API client
-- Risk Score 與 Risk Level
-- Scam Category
-- Suspicious Signals／Reasons
-- Recommended Actions
-- Loading、error 與 retry flow
-- Demo fallback／Mock mode
-
-## 系統架構
-
-目前 Architecture Freeze 採用以下最小架構：
-
-```mermaid
-flowchart TD
-    A[.NET 10 Blazor WebAssembly PWA] -->|POST /analyze| B[.NET 10 ASP.NET Core Minimal API]
-    B --> C[Request Validation]
-    C --> D[IScamAIProvider]
-    D --> E[Multimodal AI Provider - TBD]
-    E --> F[Normalization and Error Mapping]
-    F --> G[ScamAnalysisResult]
-    G --> A
-```
-
-- **Web/PWA App：**負責瀏覽器圖片選擇、preview、loading、result UI、PWA shell，以及 Remote／Mock service 切換。
-- **Backend：**負責 request validation、AI provider abstraction、結果 normalization 與 error mapping。
-- **AI：**負責圖片語意與詐騙風險分析；實際 Provider 尚未選定。
-- **Database：**MVP 不使用 database。
-- **External Services：**僅預留一個 Multimodal AI Provider，尚待選定。
-
-MVP 不使用 queue 或 member system。瀏覽器不直接呼叫 AI Provider；API key、prompt 與 provider-specific response 均由 Backend 隔離。
-
-## 使用技術
-
-| 類型 | 技術／服務 | 用途 |
+| 面向 | 目前 Repository | 目標 MVP（待實作） |
 | --- | --- | --- |
-| AI 模型 | TBD | Multimodal scam risk analysis |
-| 前端 | .NET 10 Blazor WebAssembly／Razor／CSS／PWA | Responsive Web 與可安裝的行動體驗 |
-| 後端 | .NET 10 ASP.NET Core Minimal API | `/analyze` API、validation、AI integration |
-| Sponsor 技術 | TBD | 待確認 |
+| 前端 | Next.js 最小 shell；Blazor 留作參考 | A 完成正式 React UI |
+| API | 已實作 Node Route Handler、POST /analyze | Vercel Preview 驗證待完成 |
+| AI | OpenAI adapter＋版本化 prompt 已實作；未付費呼叫 | 真實評估與品質 gate |
+| PWA | manifest／icons／Blazor service worker | 遷移 manifest／icons，重做 cache／更新 |
+| 部署 | vercel.json 已轉 Next.js；本機 production build 通過 | Vercel Next.js＋Node.js Functions |
+| 上傳 | 新 Server v2 單圖 4 MiB；舊 client 10 MiB 不相容 | A 使用 shared LIMITS |
+| 測試 | TypeScript／API HTTP／最小 shell E2E，AI dry-run | 真實 AI／Preview／UI／手機 gate 待完成 |
+| DB／會員／queue | 無 | MVP 不加入 |
 
-## 安裝與執行
+Provider 建議 OpenAI `gpt-4.1-mini-2025-04-14`；adapter 固定此 snapshot。
+採用確認、key、帳號額度與部署 URL 尚待提供。
+Vercel 設定存在不代表已完成部署驗收。
 
-需求：.NET 10 SDK。
+## 文件入口
 
-啟動 Web/PWA App：
+| 文件 | 用途 |
+| --- | --- |
+| [Product Plan](docs/product-plan.md) | 產品定位、範圍、信任文案與指標 |
+| [Architecture](docs/architecture.md) | 目標技術、現況差異與 A／B 邊界 |
+| [API Contract v2](docs/api-contract.md) | HTTP request／response、4 MiB、422、限制與錯誤 |
+| [Software Design Document](docs/sdd.md) | 模組、資料流、AI rubric、timeout、設定、ADR 與待決清單 |
+| [Test Plan](docs/test-plan.md) | 需求追溯、測試案例、AI holdout、release gates |
+| [Deployment Runbook](docs/deployment-runbook.md) | Next.js 初始化、Vercel、PWA 遷移、發布與回復 |
+| [Buildmode 3-Day Plan](docs/buildmode-mvp-plan.md) | 四人分工、每日交付與阻塞處理 |
+| [Legacy Blazor Integration](src/app/ScamShield.Web/INTEGRATION.md) | 現有 .NET 程式執行與舊部署說明 |
+
+後續開發建議依「Architecture → API Contract → SDD → Test Plan → Runbook」
+閱讀。API public 欄位以 contract 為準；不要將新文件當作舊 C# 已同步的證據。
+原 v1 contract 可由 Git 歷史查閱，與舊版一同保留至遷移驗收。
+
+## 目前程式的執行方式（Blazor）
+
+需要 .NET 10 SDK；以下只適用現有程式：
 
 ```bash
 dotnet run --project src/app/ScamShield.Web/ScamShield.Web.csproj
 ```
 
-終端顯示網址後，以瀏覽器開啟即可。預設 `ScamShield:AnalysisMode` 為 `Mock`，不需要 Backend 或 API key。
+預設 Mock，不需要 Backend 或 API key；所有有效輸入回相同示範結果，
+不能用來驗證 AI 準確度。
 
-執行 App contract checks：
+既有 checks：
 
 ```bash
 dotnet run --project src/app/ScamShield.Web.ContractChecks/ScamShield.Web.ContractChecks.csproj
 ```
 
-切換 Remote mode、Backend CORS、HTTPS 與手機實機測試說明請見 [App Integration Guide](src/app/ScamShield.Web/INTEGRATION.md)。
+這些 checks 覆蓋舊版 JSON、圖片 signature、Mock、multipart、錯誤與 timeout；
+不等於 v2、真實 Backend、完整 decode 或手機流程已驗收。
 
-## 作品展示
+## Next.js 開發方式
 
-- 作品展示網址（選填）：TBD
-- 評選影片：TBD
+Node 24.x（本機鎖定 24.19.0）、npm 12.0.2，根目錄執行：
 
-## 限制與未來工作
+```sh
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run verify:bundle
+npx --no-install playwright install chromium
+npm run test:e2e
+npm run dev
+```
 
-### Current MVP Limitations
+預設 mock，合法 `/analyze` 回 503，不會回假成功。A Demo 使用本機 fixtures。
+設定名稱見 `.env.example`；安全配置 `.env.local` 或 Vercel server env。
+`npm run eval:ai` 預設為不付費 dry-run，真正執行需人工標註與額度授權，
+見 [評估操作](tests/evaluation/README.md)。
+本機與部署的區別、Windows 工具例外和實際命令結果見 [B 進度](docs/backend-progress.md)。
 
-- MVP 輸入僅限 Screenshot／Image。
-- Backend 與實際 AI Provider 尚未實作，因此 Remote mode 目前無法完成真實分析。
-- PWA 安裝與正式 service worker 需在 production build 並透過 HTTPS（或 localhost）提供。
-- 瀏覽器版不包含 iOS／Android 原生 Share Extension、Notification Listener 或 SMS Filter。
-- AI latency、rate limit 或服務中斷可能影響結果速度與 Live Demo。
-- AI 分析屬風險輔助，不保證絕對判定，也不能取代使用者透過官方管道查證。
-- MVP 不使用 database、queue 或 member system。
+## 限制與未來方向
 
-### Future Work
+- Backend／真實 adapter 已實作；尚無真實連線或品質驗收證據。
+- 目標 MVP 僅單張 JPEG／PNG；4 MiB、像素與 body 限制見 contract。
+- 不包含 OCR pipeline、QR／URL scanner、Rule Engine 或 Threat Intelligence。
+- 不包含原生分享／SMS／Notification、會員／歷史／資料庫。
+- Remote 依賴網路與 Provider；離線僅預載 shell／明確 Demo。
+- 模型結果可能誤判；風險分數不是機率，低風險不是安全保證。
+- 目標應用程式不保存截圖；Provider／平台保留政策需另行確認。
 
-- iOS／Android 分享入口或原生 extension
-- SMS／Notification platform integration
-- URL／QR Code analysis
-- Rule Engine 與 Threat Intelligence
-- Domain／Phone Reputation
-- Browser Extension
-- Crowd Reporting
-- Scam Intelligence Platform
+上述未納入功能依產品驗證再排入後續，不列入三日交付。
 
-以上皆為 Post-MVP 方向，不屬於三日 Buildmode 核心交付範圍。
+## 團隊與展示
 
-## 第三方服務、資料與素材
-
-- **AI Provider：**TBD
-- **Scam test images／screenshots：**Demo 階段使用自製或經授權的測試素材
-- **API credentials：**不提交至 Repository；由 Backend 使用環境變數或安全的 secret 管理方式
-- **Blazor Progressive Web Application documentation：**PWA 架構與 service worker 參考；見 [Microsoft Learn](https://learn.microsoft.com/aspnet/core/blazor/progressive-web-app)
-- **ASP.NET Core Minimal API documentation：**Backend 設計參考文件；見 [Microsoft Learn](https://learn.microsoft.com/aspnet/core/tutorials/min-web-api)
-
-實際採用的第三方服務、資料來源、素材及授權方式，將在選型或素材確認後補充。
-
-## 團隊成員
-
-| 姓名 | 分工 |
+| 角色 | 責任 |
 | --- | --- |
-| TBD | Engineer A — Web/PWA App / UI |
-| TBD | Engineer B — AI / Backend |
-| TBD | Product Marketing — Problem / Value / Pitch |
-| TBD | Planning & Packaging — Demo / Presentation |
+| Engineer A（姓名 TBD） | UI／PWA／手機體驗 |
+| Engineer B（姓名 TBD） | AI／Backend／schema／部署與評估 |
+| Product Marketing（姓名 TBD） | 情境、標註覆核、價值與 Pitch |
+| Demo Producer（姓名 TBD） | 素材授權、Demo、簡報與影片 |
 
-## Documentation
-
-- [Product Plan](docs/product-plan.md)
-- [Buildmode 3-Day MVP Plan](docs/buildmode-mvp-plan.md)
-- [Architecture](docs/architecture.md)
-- [API Contract](docs/api-contract.md)
-- [App Integration Guide](src/app/ScamShield.Web/INTEGRATION.md)
+展示 URL、影片、Sponsor 技術：TBD。
+測試素材需自製或授權並去識別化；API credentials 不提交 Repository。
+第三方版本／模型／授權與資料保留紀錄在實際選型後補入。
 
 ## License
 
-TBD — License 尚待團隊確認。主辦單位要求的根目錄 `LICENSE` 檔案，將在授權方案確認後加入。
+TBD。License 尚待團隊確認，根目錄 LICENSE 尚未加入；
+本次文件更新不代替授權決策。

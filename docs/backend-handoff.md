@@ -1,0 +1,69 @@
+# B → A 整合交接（2026-09-04）
+
+## 實作與驗收邊界
+
+Next.js 根專案與 B Backend 已可在本機執行。真實 adapter 已實作，但**未使用真實憑證呼叫、AI 品質未驗收、Vercel Preview 未部署**。目前頁面僅最小 shell；A 接手 `app/layout.tsx`、`app/page.tsx` 及正式 UI／PWA，B 沒有移植整個前端。舊 `src/app/ScamShield.Web*` 保留。
+
+進度與實測紀錄：[backend-progress.md](backend-progress.md)。API public contract 維持 v2，未增減欄位或更名 endpoint。
+
+## A 的引用介面
+
+```ts
+import {
+  analysisSchema, errorSchema, parseAnalysisResponse,
+  LIMITS, RISK_LEVELS, CATEGORIES, SIGNAL_TYPES,
+  validRetryAfter,
+  type AnalysisResult, type AnalysisError,
+} from '@/lib/contracts/analysis';
+import { demoFixtures, insufficientEvidence, DEMO_NOTICE } from '@/fixtures/demo';
+
+const form = new FormData();
+form.set('image', file);
+form.set('source', 'screenshot');
+form.set('language', 'zh-TW');
+const response = await fetch('/analyze', {
+  method: 'POST', body: form, signal: abortController.signal,
+  cache: 'no-store', redirect: 'error',
+});
+// 先處理平台非 JSON／網路 fallback，才將 JSON 交给 schema。
+const result = parseAnalysisResponse(response.status, await response.json());
+// 'riskScore' in result => valid success；否則 result.error。
+```
+
+`parseAnalysisResponse` 同時檢查 strict schema、status/code/retryable，以及 score/level、none/low 語意。它會拋出驗證錯誤，A 必須顯示通用資料格式錯誤，不能重新評分修補。enum 不能忽略大小寫，文字長度按 Unicode code points。`riskLevelForScore` 是 B 產生 level 的唯一函式；A 只驗證／顯示後端值。
+
+不要手動設定 multipart Content-Type。單圖 4 MiB，body 4,300,000 bytes；圖片每邊 12,000、總像素 24,000,000、恰好 1 frame。Client 檢查僅作提示，Server 仍會完整驗證。Filename 可以省略，若有副檔名須與 JPEG/PNG 格式相符。
+
+## 狀態與錯誤
+
+| HTTP | code | A 行為 |
+| --- | --- | --- |
+| 400 | invalid_request / invalid_image | 修正欄位／換圖，不重送原圖 |
+| 405 | invalid_request | 程式呼叫錯誤；Allow: POST |
+| 413 | image_too_large | 換较小圖；平台非 JSON 亦適用 |
+| 415 | unsupported_image_format | 換單張 JPEG/PNG，拒絕動畫 |
+| 422 | insufficient_evidence | 換清楚且有上下文圖片，不顯示分數 |
+| 429 | provider_rate_limit | 採有效 Retry-After，稍後手動重試 |
+| 500 | analysis_failed | 顯示分析失敗，不假成功；retryable=false |
+| 503 | provider_unavailable | 手動稍後重試；也可能尚未配置 Remote |
+
+HEAD 無 body。所有可控回應皆 no-store、server-generated X-Request-Id。平台 401/403、HTML 登入頁、413/429/502/503/504、網路或取消可能不是 contract JSON，按 API contract §8 處理，不能拿 `message` 判斷邏輯。
+
+Client timeout 建議 25 秒；Provider 15 秒、API 20 秒、Function 30 秒。換圖／reset／離頁取消並防止舊 response 覆寫；禁止自動重送 POST。取消付費呼叫僅 best effort，不保證停止計費。
+
+## Demo 與公開設定
+
+`demoFixtures.normal`、`.fakeDelivery`、`.fakeCustomerService` 均為六欄結果，`insufficientEvidence` 為 error。Demo 必須顯示 `DEMO_NOTICE`（示範資料，未分析此圖片）。API 沒有任何 stub/debug 參數或切 Mock 成功的機制；`ANALYSIS_MODE=mock` 時合法請求回 503。Remote failure 不能靜默切 Demo。
+
+所有 `lib/server/*` 與 prompt 都是 server-only。A 不可在 Client import config/provider；Server Component 若需傳 mode，只傳 allowlist 的 mode 字串與 25000 timeout 數值，不能序列化 config。`.env.local` 或 Vercel server env 放 key，不能使用 NEXT_PUBLIC_*。
+
+## A 尚需完成
+
+- 正式 React UI、選圖／object URL、busy／generation guard、純文字結果、manual retry、422／平台 fallback。
+- 明確上傳告知與「風險指標，非詐騙機率」；低分不保證安全；不把可疑網址自動變連結。
+- PWA 只 cache 無敏感靜態資產；不可 cache /analyze、POST、截圖／分析結果。舊 worker 遷移、手機實機驗證由 A 主責。
+- 本機 E2E 僅最小 shell＋Backend smoke，不代表正式 UI／手機／PWA 通過。
+
+## B 的外部剩餘 gate
+
+需要 `AI_API_KEY`、明確美元額度與呼叫次數、Provider/模型採用確認、人工標註／覆核、Vercel 專案與受控存取設定。真實使用前須確認 Provider/平台保留政策。沒有可靠部署保護／支出阻擋，不公開 Remote；同源、CORS 或單 instance 計數不能當全站限流。

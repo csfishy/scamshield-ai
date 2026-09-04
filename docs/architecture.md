@@ -1,265 +1,136 @@
-# ScamShield AI Buildmode MVP Architecture Freeze
+# ScamShield AI MVP Architecture
 
-狀態：**Frozen for Buildmode MVP — Web/PWA revision**
+- 版本：2.0｜2026-09-04
+- 狀態：**B Backend 已本機實作／驗證；真實 AI、Preview 與 A UI/PWA 待驗收**
+- 取代舊版 Blazor＋ASP.NET Core 目標架構；現有程式仍保留 Blazor
+- 詳細設計：[SDD](sdd.md)；線上介面：[API contract v2](api-contract.md)
 
-本文件定義三日 Hackathon 的最小可行架構。App 與 Backend 只透過
-[`POST /analyze`](api-contract.md) contract 整合；任何 breaking change 必須先重新 freeze。
+## 1. 現況與目標
 
-## 1. MVP Architecture Decision
+| 面向 | Repository 現況 | 目標 |
+| --- | --- | --- |
+| Frontend | Next.js 最小 shell；舊 Blazor 保留 | A 正式 React UI |
+| Backend | 已實作 /analyze、圖片完整驗證 | Vercel Node.js runtime 待實測 |
+| AI | 單一 OpenAI adapter 已實作；SDK stub 通過 | 真實 Provider 評估待完成 |
+| Deployment | Next.js 設定、本機 build 通過 | Preview 未部署 |
+| Contract | 現有 C# client 依 v1、10 MiB | v2、4 MiB＋422＋明確資源上限 |
+| Storage | 無 DB／會員／queue | 維持無 DB／會員／queue |
+| PWA | Blazor manifest／worker | 保留安裝與離線備援能力，重新設計 cache／更新 |
 
-Buildmode MVP 採用以下技術與邊界：
+package/lockfile、Next.js source、AI adapter 與測試已建立；本機證據見
+[B 進度](backend-progress.md)，引用方式見 [交接](backend-handoff.md)。
+部署成功仍須 Preview 實測，不能由設定檔存在推定。
 
-- App：.NET 10 Blazor WebAssembly Progressive Web App（PWA）
-- UI：Razor components、HTML、responsive CSS
-- App distribution：HTTPS Web hosting；支援的手機瀏覽器可安裝至主畫面
-- Backend：.NET 10 ASP.NET Core Minimal API
-- Transport：HTTPS `multipart/form-data` request、JSON response
-- AI：Backend-only `IScamAIProvider` abstraction；本次不指定或串接真正 provider
-- Persistence：無 database、無 queue、無會員資料；App 不持久保存選取的圖片
-- Primary contract：[`POST /analyze`](api-contract.md)
-
-MVP 只完成：
+## 2. 目標資料流
 
 ```text
 Mobile / Desktop Browser
-        ↓
-Installable ScamShield PWA
-        ↓
-Select Screenshot / Image
-        ↓
-AI Analysis
-        ↓
-Risk + Reasons + Recommended Actions
+  └─ Next.js UI / React Client Components
+       ├─ Image picker / preview / result / errors
+       ├─ Explicit Mock → local fixtures
+       └─ Remote → same-origin POST /analyze
+                       ↓
+              Vercel Function / Node.js
+              bounded body + multipart validation
+                       ↓
+              image decode / limits / orientation / metadata removal
+                       ↓
+              ScamAIProvider adapter → one Multimodal AI Provider
+                       ↓
+              normalization + strict public schema
+                       ↓
+              risk / reasons / recommendations or error
 ```
 
-PWA 是純 Web 應用程式，不使用 .NET MAUI、XAML、Android/iOS native project、
-Blazor Hybrid 或 App Store 原生封裝。
+僅有一個對外分析 endpoint；Client 不直接存取 AI。
+`app/analyze/route.ts` 對應 /analyze，保留現有 URL。
+Route Handler 可作 backend endpoint；POST 分析不能以純 static export 交付。
+[Next.js 官方文件](https://nextjs.org/docs/app/guides/backend-for-frontend)
 
-## 2. Selected Technology Stack
+## 3. 技術選擇與替代方案
 
-| Layer | Frozen choice | MVP usage |
+| 決策 | 理由 | 代價／限制 |
 | --- | --- | --- |
-| App | .NET 10 Blazor WebAssembly PWA | Browser image picker、preview、loading、result UI、Remote／Mock service |
-| UI | Razor／HTML／CSS | Responsive mobile-first Web interface |
-| PWA | Web App Manifest＋Service Worker | Home-screen installation、offline application shell |
-| Backend | ASP.NET Core Minimal API | 單一 `POST /analyze` endpoint |
-| Backend language | C# | Validation、provider call、normalization、error mapping |
-| AI integration | `IScamAIProvider` | 隔離 provider-specific request、prompt 與 raw response |
-| Contract | Multipart + JSON | 讓 App 與 Backend 平行開發 |
-| Storage | None | Request 完成後不保存原始圖片 |
+| Next.js＋TypeScript | UI／API 同 repo、同源部署、共用 schema | Razor／C# 要移植 |
+| Vercel Functions＋Node | 與 Next.js 整合，支援 server 圖片處理 | payload／duration／帳號方案限制 |
+| Zod shared contract | Client／Server 執行時檢查與型別同步 | 需避免 server 模組被 client 引入 |
+| 單一 Provider adapter | 隔離 SDK／prompt／供應商格式 | Provider 選型須 Day 1 完成 |
+| 無持久儲存 | 降低 MVP 範圍與截圖保管負擔 | 沒有歷史／回報／跨請求 cache |
+| 4 MiB 上傳 | 保留 multipart 空間 | 舊 10 MiB 不相容，需同批切換 |
 
-本機只需要 .NET 10 SDK 即可建置 Web/PWA App，不需要 MAUI workload、Android SDK、
-Xcode、emulator 或 mobile signing toolchain。
+保留 Blazor＋獨立 .NET API 技術上仍可行，但不再作本次目標，
+避免三日內維護兩套新後端。React-only 靜態網站仍需另一個 API；
+目前選 Next.js 作單一部署。原生 App、Edge runtime、多服務／queue 暫不採用。
 
-## 3. Why This Stack
+## 4. Client／Server 邊界
 
-選擇順序以三日 Demo 交付速度與手機可用性為優先：
+### A：Frontend Owner
 
-1. 純 Web/PWA 符合產品目前的 distribution 需求：同一 URL 支援 desktop 與 mobile。
-2. 支援的 mobile browser 可將 PWA 安裝到主畫面，不需要 App Store build/signing。
-3. C#／.NET 仍可同時用於 Blazor client 與 ASP.NET Core Backend，降低語言切換成本。
-4. Browser `InputFile` 足以完成單張圖片選擇、preview 與 upload，不需要 native API。
-5. Service Worker 可快取 application shell；Remote analysis 仍明確依賴網路。
-6. API key、prompt 與 provider raw response 全部留在 Backend，不進入可下載的 PWA bundle。
+- React UI、responsive CSS、圖片選擇與 object URL 預覽。
+- 讀圖／分析狀態、換圖清除、取消、競態保護、manual retry。
+- 使用 shared schema，顯示後端 level，拒絕矛盾 response。
+- 明確 Demo／Remote 與圖片送雲端告知；低風險不宣稱安全。
+- Manifest、icons、離線頁面、Mock、service worker 遷移。
+- 手機／鍵盤／可存取操作。
 
-## 4. Alternatives Considered
+### B：AI／Backend Owner
 
-| Option | Strength for this MVP | Cost／risk | Decision |
-| --- | --- | --- | --- |
-| Blazor WebAssembly PWA | 純 Web、C#、responsive、可安裝、無 mobile build toolchain | 首次載入含 WebAssembly；browser 必須支援 PWA；跨 origin API 需要 CORS | **Selected** |
-| .NET MAUI | 原生 Android／iOS，平台能力完整 | 需要 MAUI workload、Android SDK、Mac/Xcode 與原生發佈流程；不是純 Web/PWA | Not selected |
-| React／Vue PWA | Web 生態成熟、bundle 可較小 | 增加 JavaScript／TypeScript framework 與另一套 model/client implementation | Not selected |
-| Native implementation | 平台整合最直接 | 需要兩套 App 與發佈流程，不適合三日 MVP | Not selected |
+- 根目錄專案初始化、lockfile、共用 schema 與 Vercel 設定。
+- bounded upload、格式／完整 decode／像素驗證與 error mapping。
+- 單一 Provider、prompt、normalization、score-to-level mapping。
+- Server secrets、timeout／取消、非敏感 log、成本與部署控制。
+- 測試 fixtures、contract tests、AI evaluation 與部署手冊。
 
-## 5. System Diagram
+### 共用變更
 
-```text
-.NET 10 Blazor WebAssembly PWA
-├─ Browser Image Picker / Preview
-├─ Loading / Error / Result UI
-├─ Web App Manifest / Service Worker
-└─ IScamAnalysisService
-   ├─ RemoteScamAnalysisService ── HTTPS POST /analyze ─┐
-   └─ MockScamAnalysisService                          │
-                                                       ▼
-                                           ASP.NET Core Minimal API
-                                           ├─ Request Validation
-                                           ├─ IScamAIProvider
-                                           │  └─ Multimodal AI
-                                           ├─ Result Normalization
-                                           └─ ScamAnalysisResult JSON
-```
+B 主責 package／lockfile／配置與 contract；A review UI 整合需求。
+A 主責 app shell／PWA；B review server 資料邊界。
+破壞性 contract 變更先更新文件、同批改 client／API／測試再發布。
 
-App 不直接存取 AI provider。Remote 與 Mock service 必須回傳相同的
-`ScamAnalysisResult`。
+## 5. 信任與網路邊界
 
-## 6. MVP Domain Models
+- 生產前後端同源 HTTPS，通常不需跨域 CORS 配置。
+- 同源不是 authentication，也不能取代限流；公開 API 可被外部 client 呼叫。
+- 不從 request 接受 AI model、Provider URL、prompt 或外部圖片 URL。
+- 圖片內容視為不受信任資料，不服從其中對模型的指令。
+- 不執行截圖網址／QR，不宣稱做過外部 reputation 查證。
+- Provider key／prompt／raw output 留在 server，Client 僅見 public contract。
+- 限流／部署保護可能回平台 error，Client 必須能處理 non-JSON。
+- 應用程式不保存截圖，供應商／平台 retention 另行確認並告知。
 
-### ScamAnalysisInput
+## 6. Mock、PWA 與更新
 
-| Field | Definition |
-| --- | --- |
-| `source` | `image` 或 `screenshot`；PWA MVP 使用 `screenshot` |
-| `image` | 使用者明確選擇的一個 JPEG 或 PNG browser file stream |
-| `language` | 可選 BCP 47 language tag；PWA MVP 使用 `zh-TW` |
-| `metadata` | Backend 從 upload 衍生的 `fileName`、`contentType`、`sizeBytes` |
+預設 Client Demo 使用正常、假物流、假客服 fixtures，顯示「示範資料，
+未分析此圖片」。Remote failure 不切換假成功。
 
-不在 MVP model 預先加入 text、URL、QR、SMS 或 Notification 欄位。
+離線能力限定預先載入的靜態 shell／offline page／Demo；Remote 仍需網路。
+API 與使用者圖片不進 service worker cache。
+不能直接沿用 Blazor 的全 navigation cache-first 策略快取 Next.js HTML／RSC；
+已安裝舊 PWA 的更新與回復流程見[部署手冊](deployment-runbook.md)。
 
-### ScamAnalysisResult
+## 7. MVP included／excluded
 
-固定包含：
+Included：真實 AI 串接、單圖驗證、結果／422／errors、manual retry、
+手機 Web／PWA、Mock、評估集、有限 timeout／成本控制、Vercel 整合部署。
 
-- `riskScore`
-- `riskLevel`
-- `category`
-- `summary`
-- `signals[]`
-- `recommendations[]`
+Excluded：會員、DB、queue、分析歷史、Blob 圖片儲存、OCR／QR extraction pipeline、
+URL scanner、獨立 Rule Engine、Threat Intelligence、SMS／Notification、
+原生 Share Extension、Browser Extension、多 Provider routing、自動模型修復。
 
-欄位、enum 與 validation 規則以 [`api-contract.md`](api-contract.md) 為唯一實作依據。
+未來若保留原始 10 MiB 圖片，需另設直傳／暫存與刪除策略，
+不能只提高 Handler 常數；Vercel 的 4.5 MB payload 限制仍存在。
+[官方限制](https://vercel.com/docs/functions/limitations)
 
-## 7. PWA App Responsibilities
+## 8. 風險與對應驗證
 
-Engineer A 擁有：
-
-- Responsive desktop／mobile Web UI
-- PWA manifest、icons 與 production service worker
-- 由 browser picker 選擇一張 JPEG 或 PNG 圖片
-- 顯示本機圖片 preview
-- 上傳前檢查非空檔案、signature／extension 與 10 MiB 上限
-- 透過 `IScamAnalysisService` 啟動分析
-- 顯示 loading 並避免重複提交
-- 解析固定 `ScamAnalysisResult`
-- 顯示 Risk、Summary、Signals 與 Recommendations
-- 依 error contract 顯示 retryable／non-retryable 狀態
-- 提供明確的 Remote／Demo Mode 設定與 UI 標示
-- 不將使用者圖片寫入 local storage、IndexedDB 或 service-worker cache
-
-App 不負責：
-
-- 呼叫 AI provider或保存 AI API key
-- 撰寫或版本化 prompt
-- 自行重新計算 `riskLevel`
-- 猜測未知 category 或 signal
-- 背景讀取手機相簿、簡訊或其他 App 內容
-
-## 8. Backend Responsibilities
-
-Engineer B 擁有：
-
-- 實作單一 `POST /analyze`
-- 驗證 multipart request、圖片格式與大小
-- 透過 `IScamAIProvider` 呼叫一個 Multimodal AI implementation
-- 管理 provider credential 與 prompt
-- 將 provider output normalize 為固定 enum 與 schema
-- 由 `riskScore` 唯一推導 `riskLevel`
-- 將失敗映射為統一 error contract
-- 不永久保存 upload 或 provider raw response
-- 允許實際 PWA origin 的 CORS request
-
-MVP Backend 不建立 database、background job、message queue、會員驗證、管理後台或
-Threat Intelligence pipeline。
-
-## 9. Browser and Network Boundary
-
-PWA 與 Backend 分開部署時受 browser security model 約束：
-
-1. PWA 與 API production endpoints 都必須使用 HTTPS，避免 mixed-content blocking。
-2. Backend 必須設定精確的 allowed PWA origin；不以任意 `*` origin 搭配 credentials。
-3. 手機上的 `localhost` 指向手機，不是開發者電腦；實機測試需使用可達 LAN 或 HTTPS URL。
-4. PWA service worker 只快取 application shell 與靜態 assets，不快取 `POST /analyze`。
-5. Remote failure 不可靜默切換 Mock，避免將預存結果冒充即時分析。
-6. App bundle 中不得包含 AI provider secret。
-
-## 10. Demo Mode
-
-```text
-Plan A — RemoteScamAnalysisService → Live API
-Plan B — MockScamAnalysisService → Local pre-generated result
-Plan C — Recorded demo video
-```
-
-- 預設 `wwwroot/appsettings.json` 使用明確的 Mock mode。
-- 操作者可在部署前將 `AnalysisMode` 改為 `Remote` 並設定 `ApiBaseUrl`。
-- 畫面永遠標示目前 Mode。
-- Offline application shell 不代表 Remote AI 可以離線執行。
-
-## 11. Engineer A / Engineer B Boundary
-
-| Shared dependency | Engineer A — Web/PWA | Engineer B — Backend / AI |
+| 風險 | 設計處理 | 驗證 |
 | --- | --- | --- |
-| [`api-contract.md`](api-contract.md) | 依 contract 建立 DTO、Mock 與 API client | 依 contract 建立 endpoint、normalizer 與 errors |
-| Request | 產生符合 contract 的 browser multipart request | 驗證並解析 request |
-| Response | 只顯示 contract 欄位 | 只回傳 contract 欄位 |
-| Errors | 依 status、code、retryable 呈現 | 將 internal/provider failure 映射為 contract |
-| Browser boundary | 提供實際 PWA origin | 設定 HTTPS 與 CORS |
-| Integration point | `RemoteScamAnalysisService` | `POST /analyze` |
+| AI 幻覺／漏判 | 有依據的 rubric、422、holdout | AI evaluation |
+| 限流／費用暴增 | 單次呼叫、部署保護／用量控制 | OPS |
+| 圖片大／解碼耗資源 | body、bytes、像素／frame／deadline | IMG／NET |
+| Platform error 非 JSON | status fallback | NET |
+| 新舊 PWA cache 混用 | worker 遷移與原裝置實測 | DEPLOY |
+| 秘密或內容外洩 | server-only、log allowlist、no-store | PRIVACY |
+| 排程被遷移拖延 | Day 1 部署真實分析，Day 2 凍結 | 三日計畫 |
 
-任一方不得單方面新增、刪除、改名或改型別。Contract 變更必須先更新文件。
-
-## 12. Included Scope
-
-- Responsive Web UI
-- Installable PWA metadata and offline application shell
-- Single image selection and preview
-- Image upload
-- Risk result, signals and recommendations
-- Error handling and manual retry
-- Demo/Mock mode
-- Remote API client skeleton
-
-## 13. Excluded Scope
-
-- .NET MAUI、native Android／iOS package、Blazor Hybrid
-- SMS Filter、Android Notification Listener、Safari Extension
-- Camera capture、background photo access、multiple image selection
-- Authentication、history、database、crowd reporting
-- OCR／QR extraction pipeline、URL scanner
-- Threat Intelligence、phone reputation、browser extension
-- Real AI provider implementation
-
-## 14. Hackathon vs. Future Architecture
-
-### Hackathon Architecture
-
-- 一個 standalone Blazor WebAssembly PWA
-- 一個無狀態 Minimal API
-- 一個 `POST /analyze`
-- 一個 AI provider adapter
-- 一份固定 JSON contract
-- Remote／Mock 兩種 service
-- 無 database、queue、member system 或 native extension
-
-### Future Production Architecture
-
-正式產品可評估 Server-side rendering、shared .NET contracts、Web Push、OCR／QR／URL
-extraction、Threat Intelligence、authentication、observability、privacy redaction、database、
-platform-specific native extensions 與 asynchronous processing。
-
-## 15. MVP Technical Risks
-
-| Risk | Impact | MVP mitigation |
-| --- | --- | --- |
-| WebAssembly first-load size | 手機首次開啟較慢 | Publish compression、保持依賴最小、預先暖機 Demo 裝置 |
-| PWA install UX 因 browser／OS 不同 | 評審裝置可能看不到一致 install prompt | Demo 以 URL 為主，主畫面安裝為加值流程 |
-| CORS／HTTPS／mixed content | Remote API 在 browser 被封鎖 | 整合前確認 allowed origin、HTTPS 與實機可達 URL |
-| Service worker cache 舊版 | Demo 可能載入舊 assets | Deploy versioned build，Demo 前重新載入並驗證版本 |
-| AI latency、rate limit 或 outage | Live Demo 無法取得結果 | 統一 429／503 mapping，保留 Mock／recorded fallback |
-| Provider schema 異常 | App 無法解析 | Backend normalization 與固定 contract checks |
-
-## 16. Post-MVP Evolution
-
-1. 以實際 Demo 測試校正 taxonomy 與 risk thresholds。
-2. 決定 hosting、正式 AI provider、privacy policy 與 retention。
-3. 將 CORS、rate limiting、observability 與 abuse protection productionize。
-4. 評估 Web Share Target、camera capture 與 Web Push 的 browser coverage。
-5. 再評估需要 native capability 的 SMS、Notification、Safari Extension 等功能。
-
-## 17. Decision References
-
-- [Blazor WebAssembly](https://learn.microsoft.com/aspnet/core/blazor/hosting-models#blazor-webassembly)
-- [ASP.NET Core Blazor PWA](https://learn.microsoft.com/aspnet/core/blazor/progressive-web-app)
-- [Blazor file uploads](https://learn.microsoft.com/aspnet/core/blazor/file-uploads)
-- [ASP.NET Core CORS](https://learn.microsoft.com/aspnet/core/security/cors)
-- [ASP.NET Core Minimal APIs](https://learn.microsoft.com/aspnet/core/tutorials/min-web-api)
+詳见 [SDD](sdd.md) 的 ADR／待決事項和 [test-plan.md](test-plan.md) 的 gates。

@@ -1,0 +1,76 @@
+{
+  "recordedAt": "2026-09-04T12:46:25.955Z",
+  "evidenceType": "B recorded results from actual local command executions",
+  "baseGitRevision": "2b4d945d91a492d4f3873426f8014c7286201d14",
+  "workingTree": "uncommitted",
+  "runtime": "v24.19.0",
+  "buildId": "zEYdFMF3jBApz8BzKZy6D",
+  "checks": {
+    "npmCi": "pass",
+    "typecheck": "pass",
+    "lint": "pass",
+    "vitest": {
+      "files": 6,
+      "tests": 69,
+      "failed": 0
+    },
+    "nextHttpSubset": {
+      "tests": 11,
+      "failed": 0
+    },
+    "productionBuild": "pass",
+    "browserSmoke": {
+      "tests": 1,
+      "failed": 0
+    },
+    "bundle": {
+      "files": 36,
+      "serverMarkers": 0,
+      "promptTraced": true,
+      "sharpTraced": true
+    },
+    "evaluationDryRun": {
+      "development": 20,
+      "holdout": 10,
+      "demoImages": 3,
+      "demoRequestsPlanned": 9
+    },
+    "unauthorizedEvaluation": "rejected before credentials/provider",
+    "paidProviderCalls": 0
+  },
+  "previewUrl": null,
+  "aiQualityGate": "not_run",
+  "accessCostGate": "not_verified",
+  "humanLabels": "pending",
+  "sourceSha256": {
+    "app/analyze/route.ts": "752d40a8bebddf3fbe34ad4d5a81fb84b8d2446aa3162488cb7af1e8ec729940",
+    "app/layout.tsx": "a1d51325e6c156bcb987ced25a14518e158e375057fb5797fa00ed55f1eee5c9",
+    "app/page.tsx": "622292c4fec241facfceb47115f528c1e6d0befed181c50a4dec1b418174449b",
+    "fixtures/demo/index.ts": "ca87c234434afa660baced592b1c856d94c68dac065fb7e18140b2152b4575f4",
+    "lib/contracts/analysis.ts": "18d03df21139ee6a0b27fa1231879504924a98583f293eafe69f0937afa441b9",
+    "lib/evaluation/schema.ts": "392a4b5483a6ca5b597a8b99bbdf3daaced9e384194177f599d0fca7c7d7f2ac",
+    "lib/server/ai/normalize.ts": "658ee345bbc1f12cae4f842c115c4ad4f5bf61602bec6f0a575bc19a2c95a51d",
+    "lib/server/ai/provider.ts": "8c9185125f12b7523ac5b5db18580bbc62ff2fd408d9337267b48d376ee6e349",
+    "lib/server/ai/providers/openai.ts": "42597d674e8747bd81fc30483e5f26df647003b00c4bb6ea75c7323a67a41b86",
+    "lib/server/analyze.ts": "626469f0e6054553cbf5d6efc6abf59a6510d2a473d31228f915442425f179b7",
+    "lib/server/config.ts": "bb988689895139bd340ed6b6c9dc1e4e771f0bbcfca6b4df9c61ca785d28632c",
+    "lib/server/deadline.ts": "45883e8092f14ca0feb6117bdd0cffa51c2dbe0f84cad68a93d33a736d6331d4",
+    "lib/server/errors.ts": "5b2c4bcad1b96403077b5b5f2e8d1ba05a46900bcad7bc82373481d4c99dfeb4",
+    "lib/server/image-validation.ts": "223b5a81f047455e034c1503a5eb443728782ef716b8e45d37f045dbd73ae021",
+    "lib/server/multipart.ts": "81a5a49deb51ea8148666084297670c75961a9fff408f7c8fee4d8102e38b391",
+    "lib/server/telemetry.ts": "9818c0ef5274a02ff6311203224749d356e81991c5f84ba1af9b3f2d13465e93",
+    "next.config.ts": "8bb51c8a36b4c9fa9c09d9d7b3cfe60728f326e7fd66820da77b64bdb265d97a",
+    "package-lock.json": "daf27a2315393c875dc33541afe09de2829817af6af15ec70093d424350d0677",
+    "package.json": "765915f493c44e57294660059a99de1be43ff89c402aee882a488e96bf1378d7",
+    "prompts/scam-analysis-v1.md": "5f4985dae8c1dda240e61bc7d448b0b4582d2f25be1812e5fe94d845d9c8b966",
+    "scripts/check-bundle.mjs": "22d94fb27d2ce0202ef6042997728adeea643c4960a5b3c4e0df306facf52bb7",
+    "scripts/evaluate.ts": "e5fa0b73aac34cc86fc97df95984c226e2ffbe2ae856075c4e93b617bd41a67a",
+    "scripts/prepare-evaluation.ts": "579b045850c6666527c8afdaccd5c921d7e63be237d1cc041364a37b080827e8",
+    "scripts/preview-smoke.ts": "091c3239931ed4eff2b8dd21549348bca9b7ee64627f26513f3f1e3c6599dd03",
+    "scripts/production-test-server.mjs": "afae3129fc608a76f9e99725793a9989fedbeaff898fe1be8ba745b0f6f1a4fc",
+    "scripts/test-e2e.mjs": "95d41d45f5b64330521836b3507e087a3be0d86b7751005072db86b2d37a0f23",
+    "scripts/test-http.mjs": "931602887183ee32a8c2ec7ae9f01cf44d2abaff2f47cf50a766963bffe34dcb",
+    "tsconfig.json": "12ba8086d8ebac52590d3d8242c889fc2a9a74151c191416a49804b3dc2e1440",
+    "vercel.json": "9fd4ea9e9bbb01391e7e946e1b2d3e2af2dd003b27067dadcdcaf4f20b799fb1"
+  }
+}
