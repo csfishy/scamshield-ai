@@ -1,4 +1,5 @@
 @page "/"
+@inject IJSRuntime JS
 @inject IScamAnalysisService AnalysisService
 @inject ScamShieldOptions Options
 
@@ -10,174 +11,222 @@
             <span class="brand-mark" aria-hidden="true">S</span>
             <span>ScamShield AI</span>
         </a>
-        <span class="mode-pill">@ModeDisplay</span>
+        <span class="mode-pill" aria-label="目前模式：@ModeDisplay">@ModeDisplay</span>
     </header>
 
-    <section class="intro" aria-labelledby="page-title">
-        <p class="eyebrow">停一下，再確認</p>
-        <h1 id="page-title">可疑截圖，先交給 AI 看看</h1>
-        <p class="intro-copy">
-            在點擊連結、付款或提供 OTP 前，上傳一張截圖，快速了解風險、原因與下一步建議。
-        </p>
-    </section>
-
-    <div class="workspace-grid">
-        <section class="panel upload-panel" aria-labelledby="upload-title">
-            <div class="section-heading">
-                <span class="step-number">1</span>
-                <div>
-                    <h2 id="upload-title">選擇可疑截圖</h2>
-                    <p>支援 JPEG、PNG，檔案上限 10 MiB</p>
-                </div>
-            </div>
-
-            <div class="drop-zone has-preview-@(_previewDataUrl is not null)">
-                @if (_previewDataUrl is not null)
+    <main>
+        <section class="intro" aria-labelledby="page-title">
+            <p class="eyebrow">停一下，再確認</p>
+            <h1 id="page-title">可疑截圖，先交給 AI 看看</h1>
+            <p class="intro-copy">
+                在點擊連結、付款或提供驗證碼前，上傳一張截圖，快速了解風險、原因與下一步建議。
+            </p>
+            <p id="mode-description" class="mode-notice @(_isMockMode ? "is-demo" : "is-remote")">
+                <span class="mode-notice-icon" aria-hidden="true">i</span>
+                @if (_isMockMode)
                 {
-                    <img class="image-preview" src="@_previewDataUrl" alt="所選截圖預覽" />
+                    <span><strong>展示模式：</strong>分析結果為模擬資料，不會呼叫分析 API。</span>
                 }
                 else
                 {
-                    <div class="empty-preview" aria-hidden="true">
-                        <span class="image-glyph">▧</span>
-                        <strong>尚未選擇圖片</strong>
-                        <span>從手機相簿或裝置中選取</span>
+                    <span><strong>連線模式：</strong>按下分析後，圖片會傳送至目前設定的分析服務。</span>
+                }
+            </p>
+        </section>
+
+        <section class="workspace-grid"
+                 aria-label="ScamShield 分析工作區"
+                 aria-busy="@(_isBusy ? "true" : "false")">
+            <section class="panel upload-panel" aria-labelledby="upload-title">
+                <div class="section-heading">
+                    <div>
+                        <h2 id="upload-title">選擇可疑截圖</h2>
+                        <p>選擇一張截圖，再由 AI 整理其中的可疑訊號。</p>
+                    </div>
+                </div>
+
+                <div class="upload-control">
+                    <InputFile id="screenshot-file"
+                               class="file-input visually-hidden"
+                               accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                               disabled="@_isBusy"
+                               aria-label="選擇可疑截圖，僅支援 JPEG 或 PNG"
+                               OnChange="HandleFileSelected" />
+
+                    <label class="drop-zone @(_previewDataUrl is not null ? "has-preview" : "is-empty") @(_isBusy ? "is-disabled" : null)"
+                           for="screenshot-file"
+                           aria-disabled="@(_isBusy ? "true" : "false")">
+                        @if (_previewDataUrl is null)
+                        {
+                            <span class="upload-prompt">
+                                <svg class="upload-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                                    <rect x="5" y="8" width="38" height="32" rx="6"></rect>
+                                    <circle cx="17" cy="19" r="4"></circle>
+                                    <path d="m10 34 9-9 7 7 5-5 7 7"></path>
+                                </svg>
+                                <strong>選擇一張可疑截圖</strong>
+                                <span>支援 JPEG、PNG，最大 10 MiB</span>
+                                <span class="button button-secondary upload-action" aria-hidden="true">選擇截圖</span>
+                            </span>
+                        }
+                        else
+                        {
+                            <img class="image-preview" src="@_previewDataUrl" alt="所選可疑截圖的預覽" />
+                            <span class="preview-change" aria-hidden="true">重新選擇截圖</span>
+                        }
+                    </label>
+                </div>
+
+                @if (_selectedImageBytes is { Length: > 0 })
+                {
+                    <div class="file-row" aria-live="polite">
+                        <span class="file-status-icon" aria-hidden="true">✓</span>
+                        <span class="file-summary">
+                            <span class="file-name" title="@_selectedFileName">@_selectedFileName</span>
+                            <span class="file-details">@_selectedFileDetails</span>
+                        </span>
                     </div>
                 }
-            </div>
 
-            <div class="file-row">
-                <div>
-                    <strong>@(_selectedFileName ?? "選擇一張圖片開始")</strong>
-                    <span>@_selectedFileDetails</span>
-                </div>
-                <label class="button button-secondary" for="screenshot-file">
-                    選擇圖片
-                </label>
-                <InputFile
-                    id="screenshot-file"
-                    class="visually-hidden"
-                    accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                    disabled="@_isBusy"
-                    OnChange="HandleFileSelected" />
-            </div>
+                <p id="privacy-hint" class="privacy-note">
+                    <span aria-hidden="true">!</span>
+                    上傳前可先遮住姓名、帳號與驗證碼等敏感資訊。
+                </p>
 
-            <button
-                class="button button-primary analyze-button"
-                disabled="@(!CanAnalyze)"
-                type="button"
-                @onclick="AnalyzeAsync">
-                <span class="step-number step-number-light">2</span>
-                開始分析
-            </button>
-
-            @if (_isBusy)
-            {
-                <div class="status-card loading-card" role="status" aria-live="polite">
-                    <span class="spinner" aria-hidden="true"></span>
-                    <div>
-                        <strong>正在分析可疑訊號…</strong>
-                        <span>檢查話術、連結與付款要求</span>
-                    </div>
-                </div>
-            }
-
-            @if (_errorMessage is not null)
-            {
-                <div class="status-card error-card" role="alert">
-                    <div>
-                        <strong>暫時無法完成分析</strong>
-                        <span>@_errorMessage</span>
-                    </div>
-                    @if (_canRetry)
+                <button class="button button-primary analyze-button"
+                        disabled="@(!CanAnalyze)"
+                        type="button"
+                        aria-describedby="mode-description privacy-hint"
+                        aria-busy="@(_isBusy ? "true" : "false")"
+                        @onclick="AnalyzeAsync">
+                    @if (_isBusy)
                     {
-                        <button class="button button-error" type="button" @onclick="AnalyzeAsync">
-                            再試一次
-                        </button>
+                        <span class="button-spinner" aria-hidden="true"></span>
                     }
-                </div>
-            }
-        </section>
-
-        <section class="panel result-panel" aria-labelledby="result-title">
-            <div class="section-heading">
-                <span class="step-number">3</span>
-                <div>
-                    <h2 id="result-title">分析結果</h2>
-                    <p>Risk、原因與安全行動一次看懂</p>
-                </div>
-            </div>
-
-            @if (_result is null)
-            {
-                <div class="empty-result">
-                    <div class="shield-outline" aria-hidden="true">✓</div>
-                    <strong>結果會顯示在這裡</strong>
-                    <span>完成圖片選擇後按下「開始分析」</span>
-                </div>
-            }
-            else
-            {
-                <div class="risk-card @RiskCssClass(_result.RiskLevel)">
-                    <div>
-                        <span>風險等級</span>
-                        <strong>@RiskLevelDisplay(_result.RiskLevel)</strong>
-                    </div>
-                    <div class="risk-score">
-                        <strong>@_result.RiskScore</strong>
-                        <span>/ 100</span>
-                    </div>
-                </div>
-
-                <div class="summary-card">
-                    <span class="result-label">詐騙類型</span>
-                    <strong class="category">@CategoryDisplay(_result.Category)</strong>
-                    <span class="result-label">分析摘要</span>
-                    <p>@_result.Summary</p>
-                </div>
-
-                <div class="result-section">
-                    <h3>可疑訊號</h3>
-                    @if (_result.Signals.Count == 0)
-                    {
-                        <p class="muted">未觀察到明確的可疑訊號。</p>
-                    }
-                    else
-                    {
-                        <ul class="signal-list">
-                            @foreach (var signal in _result.Signals)
-                            {
-                                <li>
-                                    <span class="severity @SeverityCssClass(signal.Severity)">
-                                        @SeverityDisplay(signal.Severity)
-                                    </span>
-                                    <span>@signal.Reason</span>
-                                </li>
-                            }
-                        </ul>
-                    }
-                </div>
-
-                <div class="result-section recommendations">
-                    <h3>建議行動</h3>
-                    <ol>
-                        @foreach (var recommendation in _result.Recommendations)
-                        {
-                            <li>@recommendation</li>
-                        }
-                    </ol>
-                </div>
-
-                <button class="button button-secondary full-width" type="button" @onclick="Reset">
-                    分析另一張圖片
+                    <span>@(_isBusy ? "正在分析…" : "開始 AI 分析")</span>
                 </button>
-            }
-        </section>
-    </div>
 
-    <footer>
-        分析結果僅供風險輔助；涉及付款或帳戶資料時，請改由官方管道查證。
+                @if (_isBusy)
+                {
+                    <div class="status-card loading-card" role="status" aria-live="polite">
+                        <span class="spinner" aria-hidden="true"></span>
+                        <div>
+                            <strong>正在分析可疑訊號…</strong>
+                            <span>檢查話術、連結與付款要求</span>
+                        </div>
+                    </div>
+                }
+
+                @if (_errorMessage is not null)
+                {
+                    <div class="status-card error-card"
+                         role="alert"
+                         tabindex="-1"
+                         @ref="_errorRegion">
+                        <div>
+                            <strong id="error-title">暫時無法完成分析</strong>
+                            <span>@_errorMessage</span>
+                        </div>
+                        @if (_canRetry)
+                        {
+                            <button class="button button-error" type="button" @onclick="AnalyzeAsync">
+                                再試一次
+                            </button>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="panel result-panel"
+                     aria-labelledby="result-title"
+                     aria-busy="@(_isBusy ? "true" : "false")"
+                     @ref="_resultPanel">
+                <div class="section-heading">
+                    <div>
+                        <h2 id="result-title" class="result-focus-target" tabindex="-1">分析結果</h2>
+                        <p>風險、原因與安全行動一次看懂。</p>
+                    </div>
+                </div>
+
+                @if (_result is null)
+                {
+                    <div class="empty-result">
+                        <svg class="empty-result-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                            <path d="M30 6 51 14v15c0 12-7 21-21 28C16 50 9 41 9 29V14L30 6Z"></path>
+                            <circle cx="36" cy="29" r="8"></circle>
+                            <path d="m42 35 8 8"></path>
+                        </svg>
+                        <strong>分析結果將顯示在這裡</strong>
+                        <span>選擇截圖後，我們會整理風險、可疑原因與建議行動。</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="risk-card @RiskCssClass(_result.RiskLevel)"
+                         role="status"
+                         aria-label="分析結果：@RiskLevelDisplay(_result.RiskLevel)，風險分數 @_result.RiskScore 分">
+                        <div>
+                            <span>風險等級</span>
+                            <strong>@RiskLevelDisplay(_result.RiskLevel)</strong>
+                        </div>
+                        <div class="risk-score">
+                            <strong>@_result.RiskScore</strong>
+                            <span>/ 100</span>
+                        </div>
+                    </div>
+
+                    <div class="summary-card">
+                        <span class="result-label">詐騙類型</span>
+                        <strong class="category">@CategoryDisplay(_result.Category)</strong>
+                        <span class="result-label">分析摘要</span>
+                        <p>@_result.Summary</p>
+                    </div>
+
+                    <div class="result-section">
+                        <h3>可疑訊號</h3>
+                        @if (_result.Signals.Count == 0)
+                        {
+                            <p class="muted">未觀察到明確的可疑訊號。</p>
+                        }
+                        else
+                        {
+                            <ul class="signal-list">
+                                @foreach (var signal in _result.Signals)
+                                {
+                                    <li>
+                                        <span class="severity @SeverityCssClass(signal.Severity)">
+                                            @SeverityDisplay(signal.Severity)
+                                        </span>
+                                        <span>@signal.Reason</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+
+                    <div class="result-section recommendations">
+                        <h3>建議行動</h3>
+                        <ol>
+                            @foreach (var recommendation in _result.Recommendations)
+                            {
+                                <li>@recommendation</li>
+                            }
+                        </ol>
+                    </div>
+
+                    <button class="button button-secondary full-width" type="button" @onclick="Reset">
+                        分析另一張圖片
+                    </button>
+                }
+            </section>
+        </section>
+    </main>
+
+    <footer class="trust-footer">
+        <span class="trust-footer-icon" aria-hidden="true">!</span>
+        <p><strong>重要提醒</strong> ScamShield 提供風險提示，不代表最終判定。涉及金錢或帳號時，請改用官方管道再次查證。</p>
     </footer>
+
 </div>
 
 @code {
@@ -185,20 +234,30 @@
     private string? _selectedFileName;
     private string? _selectedContentType;
     private string? _previewDataUrl;
-    private string _selectedFileDetails = "JPEG / PNG · 最大 10 MiB";
+    private string _selectedFileDetails = string.Empty;
     private ScamAnalysisResult? _result;
     private string? _errorMessage;
     private bool _canRetry;
     private bool _isBusy;
+    private bool _shouldRevealResult;
+    private bool _shouldRevealError;
+    private ElementReference _resultPanel;
+    private ElementReference _errorRegion;
 
     private bool CanAnalyze => _selectedImageBytes is { Length: > 0 } && !_isBusy;
 
-    private string ModeDisplay => Options.Mode == AnalysisMode.Mock
-        ? "Demo Mode"
-        : "Remote Mode";
+    private bool _isMockMode => Options.Mode == AnalysisMode.Mock;
+
+    private string ModeDisplay => _isMockMode
+        ? "AI 展示模式"
+        : "連線分析模式";
 
     private async Task HandleFileSelected(InputFileChangeEventArgs eventArgs)
     {
+        ClearSelection();
+        _result = null;
+        ClearError();
+
         try
         {
             var file = eventArgs.File;
@@ -212,10 +271,8 @@
             _selectedImageBytes = imageBytes;
             _selectedFileName = file.Name;
             _selectedContentType = contentType;
-            _selectedFileDetails = $"{FormatFileSize(file.Size)} · {contentType}";
+            _selectedFileDetails = $"{FormatFileSize(file.Size)} · {contentType.Replace("image/", string.Empty).ToUpperInvariant()}";
             _previewDataUrl = $"data:{contentType};base64,{Convert.ToBase64String(imageBytes)}";
-            _result = null;
-            ClearError();
         }
         catch (ImageValidationException exception)
         {
@@ -252,6 +309,7 @@
                 image,
                 _selectedFileName,
                 _selectedContentType);
+            _shouldRevealResult = true;
         }
         catch (ScamAnalysisServiceException exception)
         {
@@ -273,25 +331,59 @@
 
     private void Reset()
     {
+        ClearSelection();
+        _result = null;
+        ClearError();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_shouldRevealResult)
+        {
+            _shouldRevealResult = false;
+            await RevealOnMobileAsync(_resultPanel, "#result-title");
+        }
+
+        if (_shouldRevealError)
+        {
+            _shouldRevealError = false;
+            await RevealOnMobileAsync(_errorRegion, null);
+        }
+    }
+
+    private void ClearSelection()
+    {
         _selectedImageBytes = null;
         _selectedFileName = null;
         _selectedContentType = null;
         _previewDataUrl = null;
-        _selectedFileDetails = "JPEG / PNG · 最大 10 MiB";
-        _result = null;
-        ClearError();
+        _selectedFileDetails = string.Empty;
     }
 
     private void SetError(string message, bool retryable)
     {
         _errorMessage = message;
         _canRetry = retryable && _selectedImageBytes is { Length: > 0 };
+        _shouldRevealError = true;
     }
 
     private void ClearError()
     {
         _errorMessage = null;
         _canRetry = false;
+        _shouldRevealError = false;
+    }
+
+    private async Task RevealOnMobileAsync(ElementReference element, string? focusSelector)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("scamShieldUi.revealOnMobile", element, focusSelector);
+        }
+        catch (JSException)
+        {
+            // Dynamic status and alert regions still announce state if focus management is unavailable.
+        }
     }
 
     private static string FormatFileSize(long byteCount)
