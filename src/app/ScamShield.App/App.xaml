@@ -16,7 +16,6 @@
             </Style>
             <Style TargetType="Label">
                 <Setter Property="TextColor" Value="{StaticResource TextColor}" />
-                <Setter Property="FontFamily" Value="OpenSansRegular" />
             </Style>
             <Style TargetType="Button">
                 <Setter Property="BackgroundColor" Value="{StaticResource PrimaryColor}" />
