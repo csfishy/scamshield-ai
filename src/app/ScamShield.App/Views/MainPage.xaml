@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="ScamShield.App.Views.MainPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="ScamShield AI">
+    <ScrollView>
+        <VerticalStackLayout Padding="24,36" Spacing="18">
+            <Label
+                FontAttributes="Bold"
+                FontSize="30"
+                Text="ScamShield AI" />
+            <Label
+                FontSize="18"
+                Text="上傳可疑截圖，在採取行動前多一次風險確認。" />
+            <Border
+                Padding="24"
+                BackgroundColor="White"
+                Stroke="#B8D8D5"
+                StrokeShape="RoundRectangle 20">
+                <VerticalStackLayout Spacing="12">
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="20"
+                        HorizontalTextAlignment="Center"
+                        Text="選擇一張 JPEG 或 PNG 截圖" />
+                    <Label
+                        HorizontalTextAlignment="Center"
+                        Text="圖片選擇與分析流程將在下一個 milestone 啟用。"
+                        TextColor="{StaticResource MutedTextColor}" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
