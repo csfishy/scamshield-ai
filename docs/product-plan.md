@@ -1,10 +1,10 @@
-# 跨平台 AI 防詐 App 初步計劃書
+# Web/PWA AI 防詐 App 初步計劃書
 
 團隊討論版｜產品定位、技術架構與 MVP 規劃
 
 ## 一、專案目標
 
-開發一套可同時支援 iOS 與 Android 的 AI 防詐 App，協助使用者在點擊網址、掃描 QR Code、匯款、提供 OTP 或個人資料之前，先完成一層快速風險檢查。
+開發一套以 Web 為核心、可由手機瀏覽器安裝成 PWA 的 AI 防詐 App，協助使用者在點擊網址、匯款、提供 OTP 或個人資料之前，先完成一層快速風險檢查。
 
 - 提供詐騙風險分數與風險等級
 - 清楚列出可疑原因，而不是只給出「是／不是詐騙」
@@ -18,7 +18,7 @@
 
 **1. 圖片／截圖防詐**
 
-使用者可從 LINE、Messenger、Instagram、Threads、Email、Safari 或其他 App 分享圖片或截圖到防詐 App。
+使用者可先儲存 LINE、Messenger、Instagram、Threads、Email、Safari 或其他 App 中的可疑圖片或截圖，再從 ScamShield Web/PWA 的檔案選擇器提交分析。
 
 - OCR 文字辨識
 - QR Code 與 Barcode 辨識
@@ -45,29 +45,30 @@ iOS 可利用 Message Filter Extension 處理可支援的 SMS 情境；Android �
 
 ## 三、平台限制與產品策略
 
-**iOS**
+**Web/PWA（MVP）**
 
-- 一般第三方 App 無法任意讀取其他 App 的 Push Notification
-- 主要入口以 Share Extension、圖片／文字分享、URL 分享、SMS Message Filter 與未來 Safari Extension 為主
-- 不可把產品核心建立在背景監控所有 App 推播內容上
+- 同一套 Responsive Web UI 支援桌面與手機瀏覽器
+- 使用瀏覽器圖片選擇器取得使用者主動選取的內容
+- 支援的瀏覽器可將網站安裝到主畫面，提供接近 App 的啟動體驗
+- 不依賴 App Store／Play Store，也不包含原生 Share Extension、SMS Filter 或 Notification Listener
+- PWA 安裝、service worker 與離線 shell 在正式環境需要 HTTPS；實際分析仍需網路連線至 Backend
 
-**Android**
+**原生平台能力（Post-MVP）**
 
-- 可在使用者授權下使用 NotificationListenerService 取得部分通知資料
-- 不同 App 暴露的 notification 內容不同，不能保證取得完整聊天或圖片
-- Android 可提供比 iOS 更主動的提醒能力，但仍應使用相同 Scam Engine
+- iOS／Android 分享入口、SMS Filter 或 Notification Listener 視驗證結果另行開發
+- 核心 API contract 與分析結果模型保持平台無關，未來可供原生 extension 或其他 client 重用
 
 ## 四、核心架構原則
 
-最重要的設計原則：AI 防詐核心不得依賴 iOS 或 Android。平台層只負責取得資料、轉成標準格式，再交給共用防詐引擎。
+最重要的設計原則：AI 防詐核心不得依賴特定前端平台。Web/PWA 只負責取得使用者選擇的圖片、呼叫 Backend，再顯示標準化結果。
 
 建議資料流：
 
 ```text
-平台入口 → OCR／QR／URL 擷取 → ScamAnalysisInput → Scam Engine → Cloud AI／Threat Intelligence → ScamAnalysisResult
+Web/PWA 圖片輸入 → POST /analyze → Backend Scam Engine → Multimodal AI → ScamAnalysisResult
 ```
 
-如此未來增加 Web、Windows、Browser Extension、LINE Bot 或第三方 SDK 時，不需要重新設計 AI 核心。
+如此未來增加原生 App、Browser Extension、LINE Bot 或第三方 SDK 時，不需要重新設計 AI 核心。
 
 ## 五、標準輸入模型 ScamAnalysisInput
 
@@ -122,54 +123,33 @@ iOS 可利用 Message Filter Extension 處理可支援的 SMS 情境；Android �
 
 ## 八、跨平台技術架構
 
-**Core／Shared**
+**Web/PWA App**
 
-- Models
-- Scam Engine
-- Rule Engine
-- Risk Calculator
-- URL Analyzer
-- AI Client
-- Cache／Local Database
-- Shared Business Logic
-
-**iOS**
-
-- Main App
-- Share Extension
-- Message Filter Extension
-- 未來 Safari Extension
-- OCR／QR Platform Adapter
-
-**Android**
-
-- Main App
-- Share Intent Receiver
-- Notification Listener
-- OCR／QR Platform Adapter
+- .NET 10 Blazor WebAssembly
+- Razor／HTML／CSS Responsive UI
+- Browser `InputFile` 圖片選擇與 client-side preview
+- Web app manifest 與 service worker
+- Mock／Remote analysis service abstraction
+- Contract-aligned models 與 JSON serialization
 
 **Backend**
 
+- .NET 10 ASP.NET Core Minimal API
 - Scam Analysis API
 - Multimodal AI Gateway
-- Threat Intelligence
-- Domain／Phone Reputation
-- Scam Knowledge Base
-- Model 與規則版本管理
+- Request validation
+- Provider abstraction
+- Result normalization 與 error mapping
+
+Database、queue、會員系統、OCR、QR、Threat Intelligence 與原生 platform adapter 均不在三日 MVP 內。
 
 ## 九、技術選型建議
 
-**方案 A：.NET／C# 為主**
-
-以 .NET 共用 Scam.Core，Main App 可評估 .NET MAUI，平台特殊功能則使用 iOS／Android platform-specific implementation。適合既有 .NET 團隊快速開始。
-
-**方案 B：Kotlin Multiplatform**
-
-以 Kotlin Multiplatform 共用 Domain Model、Networking、Storage 與 Scam Logic；iOS 使用 Swift／SwiftUI，Android 使用 Kotlin／Compose。平台原生整合較自然，但初期學習成本較高。
-
 **目前建議**
 
-若團隊規模不大、既有開發經驗以 C#／.NET 為主，第一階段建議採「.NET 共用核心 + Platform Adapter」路線；但 iOS Extension 與 Android Notification Listener 等 OS 特殊能力不要硬塞進共用層。
+第一階段已選定 `.NET 10 Blazor WebAssembly PWA`。它以單一 Web codebase 提供桌面與手機 responsive UI，並讓支援的瀏覽器安裝至主畫面。Backend 維持 `.NET 10 ASP.NET Core Minimal API`，前後端共用已凍結的 JSON contract。
+
+.NET MAUI、Kotlin Multiplatform 與原生 iOS／Android client 不屬於本次 MVP；若日後需要 Share Extension 或 Notification Listener，再依實際平台需求評估。
 
 ## 十、建議的抽象介面
 
@@ -185,26 +165,27 @@ iOS 可利用 Message Filter Extension 處理可支援的 SMS 情境；Android �
 
 ## 十一、MVP 第一階段
 
-第一版只聚焦「圖片／截圖分享防詐」，同時支援 iOS 與 Android。
+第一版只聚焦「透過 Web/PWA 選取圖片／截圖進行防詐分析」，同一套介面支援桌面與手機瀏覽器。
 
 流程：
 
 ```text
-其他 App 分享圖片 → 防詐 App → OCR → URL／QR 擷取 → Rule Engine → AI Analysis → Risk Score → 可疑原因＋安全建議
+選取圖片 → Web/PWA preview → POST /analyze → Multimodal AI Analysis → Risk Score → 可疑原因＋安全建議
 ```
 
 **MVP 必要功能**
 
-- iOS 與 Android 圖片分享入口
-- OCR 中文文字辨識
-- QR Code／URL 擷取
-- 基本 Scam Rule Engine
-- Cloud AI 或 Multimodal AI 分析
-- 統一的風險結果頁
-- 基本匿名事件紀錄，用於評估分析成功率與使用流程
+- JPEG／PNG 圖片選擇、驗證與 preview
+- Responsive Web/PWA UI
+- `/analyze` multipart request
+- Cloud Multimodal AI 分析
+- 統一的風險結果頁、loading、error 與 retry
+- Mock mode，確保 Demo 不受 Backend 或網路狀態影響
 
 **MVP 暫不納入**
 
+- 原生 iOS／Android App 與分享入口
+- OCR、QR Code／URL Extraction 與 Rule Engine
 - 全面通知監控
 - 完整電話 Reputation
 - 大型群眾回報平台
@@ -216,6 +197,8 @@ iOS 可利用 Message Filter Extension 處理可支援的 SMS 情境；Android �
 
 - 純文字分享
 - URL／QR Code 單獨分析
+- OCR 與 Rule Engine
+- 原生 iOS／Android 分享入口
 - iOS Message Filter
 - Android Notification Listener
 - 官方品牌 Domain Database
@@ -230,22 +213,22 @@ iOS 可利用 Message Filter Extension 處理可支援的 SMS 情境；Android �
 - 即時詐騙趨勢與新型詐騙警示
 - 匿名群眾回報與模式統計
 - 第三方 API／SDK
-- Browser Extension、Web、Windows、LINE Bot 等入口
+- Browser Extension、原生 App、Windows、LINE Bot 等入口
 
 ## 十四、隱私與資安原則
 
-- OCR 與可在本機完成的預處理優先留在裝置端
+- 可在瀏覽器完成的檔案類型與大小驗證優先留在 client 端
 - 不預設永久儲存使用者原始截圖
 - 送往 Cloud AI 前評估遮罩姓名、電話、Email、身分證、信用卡與其他個資
 - 分析資料設定明確保存期限與刪除政策
 - API 傳輸全程加密，後端服務採最小權限設計
-- 使用者應清楚知道哪些資料會離開裝置
+- 使用者應清楚知道選取的圖片會送往 Backend 與 AI Provider
 - AI 分析結果定位為風險輔助判斷，不宣稱百分之百正確
 
 ## 十五、MVP 驗證指標
 
 - 分享圖片到取得結果所需時間
-- OCR 成功率
+- 圖片選擇與 API request 成功率
 - AI 能否正確指出可疑訊號
 - 高風險案例漏判率與正常案例誤判率
 - 使用者是否理解結果與建議
@@ -254,20 +237,19 @@ iOS 可利用 Message Filter Extension 處理可支援的 SMS 情境；Android �
 
 ## 十六、初步開發順序
 
-1. 建立 ScamAnalysisInput／ScamAnalysisResult Domain Model
-2. 建立 Scam.Core 與 Platform Adapter 介面
-3. 完成 iOS／Android 圖片分享入口
-4. 導入 OCR、QR 與 URL Extraction
-5. 建立第一版 Rule Engine
-6. 串接 Multimodal AI API
-7. 完成統一 Risk Result UI
-8. 建立測試案例集與誤判分析流程
-9. 小規模內部測試後再決定 SMS／Notification 第二階段範圍
+1. 凍結 `/analyze` API contract 與 `ScamAnalysisResult`
+2. 建立 Blazor WebAssembly PWA skeleton
+3. 完成圖片選擇、validation、preview 與 responsive UI
+4. 完成 Mock／Remote analysis service
+5. Backend 實作 `/analyze` 與 provider abstraction
+6. 串接 Multimodal AI Provider
+7. 進行前後端 integration 與 error mapping 測試
+8. 建立 Demo 案例集與誤判分析流程
+9. 部署 HTTPS Web/PWA 並進行桌面、iOS、Android 瀏覽器驗證
 
 ## 十七、團隊第一輪需要決策的問題
 
-- 第一版技術路線採 .NET MAUI／C# 還是 Kotlin Multiplatform？
-- OCR 是否統一使用跨平台方案，或各平台使用原生最佳方案？
+- 第一版技術路線已決定採 .NET 10 Blazor WebAssembly PWA。
 - Cloud AI 使用哪一個 Multimodal Provider？是否需保留 Provider Abstraction？
 - 第一版 Risk Score 如何定義與校正？
 - 哪些資料允許送到 Cloud？哪些必須留在 Device？
@@ -277,6 +259,6 @@ iOS 可利用 Message Filter Extension 處理可支援的 SMS 情境；Android �
 
 ## 十八、目前建議結論
 
-第一版建議以「跨平台圖片／截圖防詐」作為 MVP。技術上採 Shared Scam Core + Platform Adapter + Cloud Multimodal AI 的架構，先把 ScamAnalysisInput／Result、Rule Engine 與 AI Gateway 定義穩定。iOS 與 Android 只負責各自最適合的資料入口與平台能力。
+第一版以「Web/PWA 圖片／截圖防詐」作為 MVP。技術上採 Blazor WebAssembly PWA + ASP.NET Core Minimal API + Cloud Multimodal AI 的最小架構，先把圖片提交、`ScamAnalysisResult`、錯誤處理與 AI Gateway 串接穩定。
 
-這樣可以在不被 iOS 通知限制綁死的前提下快速驗證產品價值，同時保留 Android 主動通知預警、瀏覽器擴充、Web 與第三方 SDK 的後續發展空間。
+這樣可用單一 Web codebase 快速驗證產品價值，讓手機透過 PWA 使用，同時保留原生分享入口、主動通知預警、瀏覽器擴充與第三方 SDK 的後續發展空間。
