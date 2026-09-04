@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ScamShield.Web\Models\*.cs" Link="Models\%(Filename)%(Extension)" />
+    <Compile Include="..\ScamShield.Web\Services\IScamAnalysisService.cs" Link="Services\IScamAnalysisService.cs" />
+    <Compile Include="..\ScamShield.Web\Services\ImageFileValidator.cs" Link="Services\ImageFileValidator.cs" />
+    <Compile Include="..\ScamShield.Web\Services\MockScamAnalysisService.cs" Link="Services\MockScamAnalysisService.cs" />
+    <Compile Include="..\ScamShield.Web\Services\RemoteScamAnalysisService.cs" Link="Services\RemoteScamAnalysisService.cs" />
+    <Compile Include="..\ScamShield.Web\Services\ScamAnalysisServiceException.cs" Link="Services\ScamAnalysisServiceException.cs" />
+  </ItemGroup>
+</Project>

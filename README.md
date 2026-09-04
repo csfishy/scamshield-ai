@@ -2,7 +2,7 @@
 
 AI-powered scam risk detection for screenshots and suspicious digital content.
 
-> 目前專案處於 Buildmode MVP Architecture Freeze 階段；以下功能與架構是三日 Hackathon 的最終 MVP 目標，App 與 Backend 尚未實作。
+> 目前已完成 Buildmode MVP 的 Web/PWA App skeleton；Backend 與實際 AI Provider 尚待實作。App 可先以 Mock mode 獨立展示完整分析流程。
 
 ## 問題與目標
 
@@ -20,16 +20,15 @@ Screenshot / Image
 
 ## 核心功能
 
-以下為已確認、尚待實作的三日 MVP 功能範圍：
-
-- Screenshot／Image 選擇、預覽與上傳
-- Multimodal AI 詐騙風險分析
+- 瀏覽器圖片選擇與 preview（JPEG／PNG）
+- Responsive Web UI，可由支援的行動瀏覽器安裝為 PWA
+- Multimodal AI 詐騙風險分析 API client
 - Risk Score 與 Risk Level
 - Scam Category
 - Suspicious Signals／Reasons
 - Recommended Actions
-- Error handling
-- Demo fallback／mock mode
+- Loading、error 與 retry flow
+- Demo fallback／Mock mode
 
 ## 系統架構
 
@@ -37,7 +36,7 @@ Screenshot / Image
 
 ```mermaid
 flowchart TD
-    A[.NET 10 MAUI App] -->|POST /analyze| B[.NET 10 ASP.NET Core Minimal API]
+    A[.NET 10 Blazor WebAssembly PWA] -->|POST /analyze| B[.NET 10 ASP.NET Core Minimal API]
     B --> C[Request Validation]
     C --> D[IScamAIProvider]
     D --> E[Multimodal AI Provider - TBD]
@@ -46,30 +45,42 @@ flowchart TD
     G --> A
 ```
 
-- **App：**負責圖片選擇、preview、loading、result UI，以及 Remote／Mock service 切換。
+- **Web/PWA App：**負責瀏覽器圖片選擇、preview、loading、result UI、PWA shell，以及 Remote／Mock service 切換。
 - **Backend：**負責 request validation、AI provider abstraction、結果 normalization 與 error mapping。
 - **AI：**負責圖片語意與詐騙風險分析；實際 Provider 尚未選定。
 - **Database：**MVP 不使用 database。
 - **External Services：**僅預留一個 Multimodal AI Provider，尚待選定。
 
-MVP 也不使用 queue 或 member system。App 不直接呼叫 AI Provider，API key、prompt 與 provider-specific response 均由 Backend 隔離。
+MVP 不使用 queue 或 member system。瀏覽器不直接呼叫 AI Provider；API key、prompt 與 provider-specific response 均由 Backend 隔離。
 
 ## 使用技術
 
 | 類型 | 技術／服務 | 用途 |
 | --- | --- | --- |
 | AI 模型 | TBD | Multimodal scam risk analysis |
-| 前端 | .NET 10 MAUI／C#／XAML | Android／iOS MVP App |
+| 前端 | .NET 10 Blazor WebAssembly／Razor／CSS／PWA | Responsive Web 與可安裝的行動體驗 |
 | 後端 | .NET 10 ASP.NET Core Minimal API | `/analyze` API、validation、AI integration |
 | Sponsor 技術 | TBD | 待確認 |
 
 ## 安裝與執行
 
-目前 Repository 尚處 Architecture Freeze 階段，App 與 Backend 尚未實作，因此目前沒有可執行的安裝或啟動步驟。
+需求：.NET 10 SDK。
+
+啟動 Web/PWA App：
 
 ```bash
-# TBD — App / Backend implementation pending
+dotnet run --project src/app/ScamShield.Web/ScamShield.Web.csproj
 ```
+
+終端顯示網址後，以瀏覽器開啟即可。預設 `ScamShield:AnalysisMode` 為 `Mock`，不需要 Backend 或 API key。
+
+執行 App contract checks：
+
+```bash
+dotnet run --project src/app/ScamShield.Web.ContractChecks/ScamShield.Web.ContractChecks.csproj
+```
+
+切換 Remote mode、Backend CORS、HTTPS 與手機實機測試說明請見 [App Integration Guide](src/app/ScamShield.Web/INTEGRATION.md)。
 
 ## 作品展示
 
@@ -81,18 +92,17 @@ MVP 也不使用 queue 或 member system。App 不直接呼叫 AI Provider，API
 ### Current MVP Limitations
 
 - MVP 輸入僅限 Screenshot／Image。
-- App 與 Backend 尚未實作，目前只有文件與已凍結的 API contract。
-- AI Provider 尚待確定。
+- Backend 與實際 AI Provider 尚未實作，因此 Remote mode 目前無法完成真實分析。
+- PWA 安裝與正式 service worker 需在 production build 並透過 HTTPS（或 localhost）提供。
+- 瀏覽器版不包含 iOS／Android 原生 Share Extension、Notification Listener 或 SMS Filter。
 - AI latency、rate limit 或服務中斷可能影響結果速度與 Live Demo。
 - AI 分析屬風險輔助，不保證絕對判定，也不能取代使用者透過官方管道查證。
 - MVP 不使用 database、queue 或 member system。
-- 尚未支援 SMS Filter、Notification Listener 或平台 extension。
-- iOS 一般第三方 App 無法任意讀取其他 App 的通知。
 
 ### Future Work
 
-- iOS Message Filter
-- Android Notification Listener
+- iOS／Android 分享入口或原生 extension
+- SMS／Notification platform integration
 - URL／QR Code analysis
 - Rule Engine 與 Threat Intelligence
 - Domain／Phone Reputation
@@ -106,8 +116,8 @@ MVP 也不使用 queue 或 member system。App 不直接呼叫 AI Provider，API
 
 - **AI Provider：**TBD
 - **Scam test images／screenshots：**Demo 階段使用自製或經授權的測試素材
-- **API credentials：**不提交至 Repository；使用本機環境變數或安全的 secret 管理方式
-- **Microsoft .NET MAUI documentation：**架構選型參考文件，不代表額外的第三方 runtime dependency；見 [Microsoft Learn](https://learn.microsoft.com/dotnet/maui/what-is-maui)
+- **API credentials：**不提交至 Repository；由 Backend 使用環境變數或安全的 secret 管理方式
+- **Blazor Progressive Web Application documentation：**PWA 架構與 service worker 參考；見 [Microsoft Learn](https://learn.microsoft.com/aspnet/core/blazor/progressive-web-app)
 - **ASP.NET Core Minimal API documentation：**Backend 設計參考文件；見 [Microsoft Learn](https://learn.microsoft.com/aspnet/core/tutorials/min-web-api)
 
 實際採用的第三方服務、資料來源、素材及授權方式，將在選型或素材確認後補充。
@@ -116,7 +126,7 @@ MVP 也不使用 queue 或 member system。App 不直接呼叫 AI Provider，API
 
 | 姓名 | 分工 |
 | --- | --- |
-| TBD | Engineer A — App / UI |
+| TBD | Engineer A — Web/PWA App / UI |
 | TBD | Engineer B — AI / Backend |
 | TBD | Product Marketing — Problem / Value / Pitch |
 | TBD | Planning & Packaging — Demo / Presentation |
@@ -127,6 +137,7 @@ MVP 也不使用 queue 或 member system。App 不直接呼叫 AI Provider，API
 - [Buildmode 3-Day MVP Plan](docs/buildmode-mvp-plan.md)
 - [Architecture](docs/architecture.md)
 - [API Contract](docs/api-contract.md)
+- [App Integration Guide](src/app/ScamShield.Web/INTEGRATION.md)
 
 ## License
 

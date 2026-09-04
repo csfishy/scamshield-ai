@@ -1,0 +1,346 @@
+@page "/"
+@inject IScamAnalysisService AnalysisService
+@inject ScamShieldOptions Options
+
+<PageTitle>ScamShield AI｜截圖防詐分析</PageTitle>
+
+<div class="page-frame">
+    <header class="hero">
+        <a class="brand" href="/" aria-label="ScamShield AI 首頁">
+            <span class="brand-mark" aria-hidden="true">S</span>
+            <span>ScamShield AI</span>
+        </a>
+        <span class="mode-pill">@ModeDisplay</span>
+    </header>
+
+    <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">停一下，再確認</p>
+        <h1 id="page-title">可疑截圖，先交給 AI 看看</h1>
+        <p class="intro-copy">
+            在點擊連結、付款或提供 OTP 前，上傳一張截圖，快速了解風險、原因與下一步建議。
+        </p>
+    </section>
+
+    <div class="workspace-grid">
+        <section class="panel upload-panel" aria-labelledby="upload-title">
+            <div class="section-heading">
+                <span class="step-number">1</span>
+                <div>
+                    <h2 id="upload-title">選擇可疑截圖</h2>
+                    <p>支援 JPEG、PNG，檔案上限 10 MiB</p>
+                </div>
+            </div>
+
+            <div class="drop-zone has-preview-@(_previewDataUrl is not null)">
+                @if (_previewDataUrl is not null)
+                {
+                    <img class="image-preview" src="@_previewDataUrl" alt="所選截圖預覽" />
+                }
+                else
+                {
+                    <div class="empty-preview" aria-hidden="true">
+                        <span class="image-glyph">▧</span>
+                        <strong>尚未選擇圖片</strong>
+                        <span>從手機相簿或裝置中選取</span>
+                    </div>
+                }
+            </div>
+
+            <div class="file-row">
+                <div>
+                    <strong>@(_selectedFileName ?? "選擇一張圖片開始")</strong>
+                    <span>@_selectedFileDetails</span>
+                </div>
+                <label class="button button-secondary" for="screenshot-file">
+                    選擇圖片
+                </label>
+                <InputFile
+                    id="screenshot-file"
+                    class="visually-hidden"
+                    accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                    disabled="@_isBusy"
+                    OnChange="HandleFileSelected" />
+            </div>
+
+            <button
+                class="button button-primary analyze-button"
+                disabled="@(!CanAnalyze)"
+                type="button"
+                @onclick="AnalyzeAsync">
+                <span class="step-number step-number-light">2</span>
+                開始分析
+            </button>
+
+            @if (_isBusy)
+            {
+                <div class="status-card loading-card" role="status" aria-live="polite">
+                    <span class="spinner" aria-hidden="true"></span>
+                    <div>
+                        <strong>正在分析可疑訊號…</strong>
+                        <span>檢查話術、連結與付款要求</span>
+                    </div>
+                </div>
+            }
+
+            @if (_errorMessage is not null)
+            {
+                <div class="status-card error-card" role="alert">
+                    <div>
+                        <strong>暫時無法完成分析</strong>
+                        <span>@_errorMessage</span>
+                    </div>
+                    @if (_canRetry)
+                    {
+                        <button class="button button-error" type="button" @onclick="AnalyzeAsync">
+                            再試一次
+                        </button>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="panel result-panel" aria-labelledby="result-title">
+            <div class="section-heading">
+                <span class="step-number">3</span>
+                <div>
+                    <h2 id="result-title">分析結果</h2>
+                    <p>Risk、原因與安全行動一次看懂</p>
+                </div>
+            </div>
+
+            @if (_result is null)
+            {
+                <div class="empty-result">
+                    <div class="shield-outline" aria-hidden="true">✓</div>
+                    <strong>結果會顯示在這裡</strong>
+                    <span>完成圖片選擇後按下「開始分析」</span>
+                </div>
+            }
+            else
+            {
+                <div class="risk-card @RiskCssClass(_result.RiskLevel)">
+                    <div>
+                        <span>風險等級</span>
+                        <strong>@RiskLevelDisplay(_result.RiskLevel)</strong>
+                    </div>
+                    <div class="risk-score">
+                        <strong>@_result.RiskScore</strong>
+                        <span>/ 100</span>
+                    </div>
+                </div>
+
+                <div class="summary-card">
+                    <span class="result-label">詐騙類型</span>
+                    <strong class="category">@CategoryDisplay(_result.Category)</strong>
+                    <span class="result-label">分析摘要</span>
+                    <p>@_result.Summary</p>
+                </div>
+
+                <div class="result-section">
+                    <h3>可疑訊號</h3>
+                    @if (_result.Signals.Count == 0)
+                    {
+                        <p class="muted">未觀察到明確的可疑訊號。</p>
+                    }
+                    else
+                    {
+                        <ul class="signal-list">
+                            @foreach (var signal in _result.Signals)
+                            {
+                                <li>
+                                    <span class="severity @SeverityCssClass(signal.Severity)">
+                                        @SeverityDisplay(signal.Severity)
+                                    </span>
+                                    <span>@signal.Reason</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+
+                <div class="result-section recommendations">
+                    <h3>建議行動</h3>
+                    <ol>
+                        @foreach (var recommendation in _result.Recommendations)
+                        {
+                            <li>@recommendation</li>
+                        }
+                    </ol>
+                </div>
+
+                <button class="button button-secondary full-width" type="button" @onclick="Reset">
+                    分析另一張圖片
+                </button>
+            }
+        </section>
+    </div>
+
+    <footer>
+        分析結果僅供風險輔助；涉及付款或帳戶資料時，請改由官方管道查證。
+    </footer>
+</div>
+
+@code {
+    private byte[]? _selectedImageBytes;
+    private string? _selectedFileName;
+    private string? _selectedContentType;
+    private string? _previewDataUrl;
+    private string _selectedFileDetails = "JPEG / PNG · 最大 10 MiB";
+    private ScamAnalysisResult? _result;
+    private string? _errorMessage;
+    private bool _canRetry;
+    private bool _isBusy;
+
+    private bool CanAnalyze => _selectedImageBytes is { Length: > 0 } && !_isBusy;
+
+    private string ModeDisplay => Options.Mode == AnalysisMode.Mock
+        ? "Demo Mode"
+        : "Remote Mode";
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs eventArgs)
+    {
+        try
+        {
+            var file = eventArgs.File;
+            await using var input = file.OpenReadStream(ImageFileValidator.MaximumImageSizeBytes);
+            using var output = new MemoryStream();
+            await input.CopyToAsync(output);
+
+            var imageBytes = output.ToArray();
+            var contentType = ImageFileValidator.DetectContentType(file.Name, imageBytes);
+
+            _selectedImageBytes = imageBytes;
+            _selectedFileName = file.Name;
+            _selectedContentType = contentType;
+            _selectedFileDetails = $"{FormatFileSize(file.Size)} · {contentType}";
+            _previewDataUrl = $"data:{contentType};base64,{Convert.ToBase64String(imageBytes)}";
+            _result = null;
+            ClearError();
+        }
+        catch (ImageValidationException exception)
+        {
+            SetError(exception.Message, retryable: false);
+        }
+        catch (IOException)
+        {
+            SetError("圖片大小不可超過 10 MiB。請選擇較小的圖片。", retryable: false);
+        }
+        catch
+        {
+            SetError("無法讀取選擇的圖片，請改選其他 JPEG 或 PNG 檔案。", retryable: false);
+        }
+    }
+
+    private async Task AnalyzeAsync()
+    {
+        if (_selectedImageBytes is not { Length: > 0 }
+            || string.IsNullOrWhiteSpace(_selectedFileName)
+            || string.IsNullOrWhiteSpace(_selectedContentType))
+        {
+            SetError("請先選擇一張 JPEG 或 PNG 圖片。", retryable: false);
+            return;
+        }
+
+        _isBusy = true;
+        _result = null;
+        ClearError();
+
+        try
+        {
+            await using var image = new MemoryStream(_selectedImageBytes, writable: false);
+            _result = await AnalysisService.AnalyzeAsync(
+                image,
+                _selectedFileName,
+                _selectedContentType);
+        }
+        catch (ScamAnalysisServiceException exception)
+        {
+            SetError(exception.Message, exception.Retryable);
+        }
+        catch (OperationCanceledException)
+        {
+            SetError("分析已取消。", retryable: true);
+        }
+        catch
+        {
+            SetError("目前無法完成分析，請稍後再試。", retryable: true);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void Reset()
+    {
+        _selectedImageBytes = null;
+        _selectedFileName = null;
+        _selectedContentType = null;
+        _previewDataUrl = null;
+        _selectedFileDetails = "JPEG / PNG · 最大 10 MiB";
+        _result = null;
+        ClearError();
+    }
+
+    private void SetError(string message, bool retryable)
+    {
+        _errorMessage = message;
+        _canRetry = retryable && _selectedImageBytes is { Length: > 0 };
+    }
+
+    private void ClearError()
+    {
+        _errorMessage = null;
+        _canRetry = false;
+    }
+
+    private static string FormatFileSize(long byteCount)
+    {
+        return byteCount >= 1024 * 1024
+            ? $"{byteCount / (1024d * 1024d):0.0} MiB"
+            : $"{byteCount / 1024d:0.0} KiB";
+    }
+
+    private static string RiskLevelDisplay(RiskLevel riskLevel) => riskLevel switch
+    {
+        RiskLevel.High => "高風險",
+        RiskLevel.Medium => "中度風險",
+        RiskLevel.Low => "低風險",
+        _ => riskLevel.ToString()
+    };
+
+    private static string RiskCssClass(RiskLevel riskLevel) => riskLevel switch
+    {
+        RiskLevel.High => "risk-high",
+        RiskLevel.Medium => "risk-medium",
+        _ => "risk-low"
+    };
+
+    private static string CategoryDisplay(ScamCategory category) => category switch
+    {
+        ScamCategory.None => "未發現明確類型",
+        ScamCategory.Phishing => "網路釣魚",
+        ScamCategory.FakeCustomerService => "假客服／假物流",
+        ScamCategory.InvestmentScam => "投資詐騙",
+        ScamCategory.Impersonation => "冒充身分",
+        ScamCategory.AccountTheft => "帳號竊取",
+        ScamCategory.Other => "其他詐騙風險",
+        ScamCategory.Unknown => "證據不足",
+        _ => category.ToString()
+    };
+
+    private static string SeverityDisplay(SignalSeverity severity) => severity switch
+    {
+        SignalSeverity.High => "高",
+        SignalSeverity.Medium => "中",
+        SignalSeverity.Low => "低",
+        _ => severity.ToString()
+    };
+
+    private static string SeverityCssClass(SignalSeverity severity) => severity switch
+    {
+        SignalSeverity.High => "severity-high",
+        SignalSeverity.Medium => "severity-medium",
+        _ => "severity-low"
+    };
+}
