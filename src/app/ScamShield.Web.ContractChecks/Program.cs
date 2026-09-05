@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
@@ -35,6 +36,44 @@ const string mockJson = """
       ]
     }
     """;
+
+var repositoryRoot = FindRepositoryRoot();
+var webRoot = Path.Combine(repositoryRoot, "src", "app", "ScamShield.Web", "wwwroot");
+var expectedIcons = new Dictionary<string, int>(StringComparer.Ordinal)
+{
+    ["apple-touch-icon.png"] = 180,
+    ["icon-192.png"] = 192,
+    ["icon-512.png"] = 512,
+    ["icon-maskable-512.png"] = 512
+};
+
+foreach (var (fileName, expectedSize) in expectedIcons)
+{
+    AssertPngIcon(Path.Combine(webRoot, fileName), expectedSize);
+}
+
+using (var manifest = JsonDocument.Parse(
+    await File.ReadAllTextAsync(Path.Combine(webRoot, "manifest.webmanifest"))))
+{
+    var icons = manifest.RootElement.GetProperty("icons").EnumerateArray().ToArray();
+    Assert(icons.Length == 3, "Manifest must declare two any icons and one maskable icon.");
+    AssertManifestIcon(icons[0], "icon-192.png", "192x192", "any");
+    AssertManifestIcon(icons[1], "icon-512.png", "512x512", "any");
+    AssertManifestIcon(icons[2], "icon-maskable-512.png", "512x512", "maskable");
+}
+
+var indexHtml = await File.ReadAllTextAsync(Path.Combine(webRoot, "index.html"));
+Assert(
+    indexHtml.Contains(
+        "<link rel=\"apple-touch-icon\" sizes=\"180x180\" type=\"image/png\" href=\"apple-touch-icon.png\" />",
+        StringComparison.Ordinal),
+    "The 180x180 Apple touch icon metadata is missing.");
+
+var publishedWorker = await File.ReadAllTextAsync(
+    Path.Combine(webRoot, "service-worker.published.js"));
+Assert(
+    publishedWorker.Contains("event.request.method === 'GET'", StringComparison.Ordinal),
+    "Published service worker must only read from its cache for GET requests.");
 
 Assert(
     ImageFileValidator.DetectContentType("sample.jpg", [0xFF, 0xD8, 0xFF]) == "image/jpeg",
@@ -163,7 +202,54 @@ catch (JsonException)
 }
 
 Console.WriteLine(
-    "Contract checks passed: JSON, image validation, mock delay, multipart request, API errors, and timeout.");
+    "Contract and PWA checks passed: icons, manifest, Apple metadata, JSON, image validation, mock delay, multipart request, API errors, and timeout.");
+
+static string FindRepositoryRoot()
+{
+    foreach (var startingPath in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
+    {
+        for (var directory = new DirectoryInfo(startingPath); directory is not null; directory = directory.Parent)
+        {
+            var webRoot = Path.Combine(directory.FullName, "src", "app", "ScamShield.Web", "wwwroot");
+            if (Directory.Exists(webRoot))
+            {
+                return directory.FullName;
+            }
+        }
+    }
+
+    throw new DirectoryNotFoundException("Could not locate the repository root.");
+}
+
+static void AssertManifestIcon(JsonElement icon, string src, string sizes, string purpose)
+{
+    Assert(icon.GetProperty("src").GetString() == src, $"Manifest is missing {src}.");
+    Assert(icon.GetProperty("type").GetString() == "image/png", $"{src} must be PNG.");
+    Assert(icon.GetProperty("sizes").GetString() == sizes, $"{src} has the wrong size.");
+    Assert(icon.GetProperty("purpose").GetString() == purpose, $"{src} has the wrong purpose.");
+}
+
+static void AssertPngIcon(string path, int expectedSize)
+{
+    var bytes = File.ReadAllBytes(path);
+    ReadOnlySpan<byte> pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    Assert(bytes.AsSpan(0, 8).SequenceEqual(pngSignature), $"{path} is not a PNG file.");
+    Assert(Encoding.ASCII.GetString(bytes, 12, 4) == "IHDR", $"{path} has no IHDR chunk.");
+    Assert(BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(16, 4)) == (uint)expectedSize, $"{path} has the wrong width.");
+    Assert(BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(20, 4)) == (uint)expectedSize, $"{path} has the wrong height.");
+    Assert(bytes[25] == 2, $"{path} must use opaque RGB pixels without alpha.");
+
+    var hasSrgbProfile = false;
+    for (var offset = 8; offset + 12 <= bytes.Length;)
+    {
+        var length = checked((int)BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(offset, 4)));
+        var type = Encoding.ASCII.GetString(bytes, offset + 4, 4);
+        hasSrgbProfile |= type is "sRGB" or "iCCP";
+        offset = checked(offset + length + 12);
+    }
+
+    Assert(hasSrgbProfile, $"{path} must declare sRGB colour data.");
+}
 
 static string? GetPartName(HttpContent content)
 {
