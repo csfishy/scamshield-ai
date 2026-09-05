@@ -134,10 +134,10 @@ Vercel 以 `vercel.json` 設定 Next.js、`npm ci` 與 `npm run build`。Reposit
 
 | 角色 | 責任 |
 | --- | --- |
-| Engineer A（姓名 TBD） | UI／PWA／手機體驗 |
-| Engineer B（姓名 TBD） | AI／Backend／schema／部署與評估 |
-| Product Marketing（姓名 TBD） | 情境、標註覆核、價值與 Pitch |
-| Demo Producer（姓名 TBD） | 素材授權、Demo、簡報與影片 |
+| Engineer A（張小魚） | UI／PWA／手機體驗 |
+| Engineer B（Louis） | AI／Backend／schema／部署與評估 |
+| Product Marketing（George） | 情境、標註覆核、價值與 Pitch |
+| Demo Producer（Ruru） | 素材授權、Demo、簡報與影片 |
 
 展示 URL、影片、Sponsor 技術：TBD。
 測試素材需自製或授權並去識別化；API credentials 不提交 Repository。
