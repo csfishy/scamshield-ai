@@ -45,6 +45,13 @@ describe("normalization and errors", () => {
       { category: "NONE" },
       { riskScore: 70 },
       { summary: "x".repeat(301) },
+      { summary: "可疑內容。}]," },
+      {
+        signals: [
+          { type: "other", severity: "low", reason: "可疑內容。}," },
+        ],
+      },
+      { recommendations: ["請聯絡官方。],"] },
       { recommendations: [] },
       { extra: 1 },
     ])

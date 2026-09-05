@@ -2,7 +2,7 @@
 
 ## 實作與驗收邊界
 
-Next.js 根專案與 B Backend 已可在本機執行。A 已在同一分支完成正式 UI／PWA 自動化範圍，A+B 整合後的 typecheck、lint、83 Vitest、11 HTTP integration、production build 與 10 Playwright E2E 均通過。真實 adapter 已實作，但**未使用真實憑證呼叫、AI 品質未驗收、Preview Remote Backend 尚未完成 smoke**。舊 `src/app/ScamShield.Web*` 保留。
+Next.js 根專案與 B Backend 已可在本機執行。A 已在同一分支完成正式 UI／PWA 自動化範圍，A+B 整合後的 typecheck、lint、85 Vitest、11 HTTP integration、production build 與 10 Playwright E2E 均通過。真實 adapter 已完成一次獲授權圖片 smoke，但**完整 AI 品質未驗收、Preview Remote Backend 尚未完成 smoke**。舊 `src/app/ScamShield.Web*` 保留。
 
 進度與實測紀錄：[backend-progress.md](backend-progress.md)。API public contract 維持 v2，未增減欄位或更名 endpoint。
 
@@ -65,4 +65,4 @@ Client timeout 建議 25 秒；Provider 15 秒、API 20 秒、Function 30 秒。
 
 ## B 的外部剩餘 gate
 
-需要 `AI_API_KEY`、明確美元額度與呼叫次數、Provider/模型採用確認、人工標註／覆核，以及 Preview Remote env／受控存取設定。Repository 改為 Public 後，PR #3 的 Backend 與 Vercel checks 已成功，Preview URL 顯示 Ready；B 執行環境對該 URL 連線逾時，尚未完成 Backend smoke。Vercel project 設定、secret、保護與 runtime logs 仍由 Hobby owner A 管理。真實使用前須確認 Provider/平台保留政策。沒有可靠部署保護／支出阻擋，不公開 Remote；同源、CORS 或單 instance 計數不能當全站限流。
+本機 `AI_API_KEY` 已安全設定，且一次獲授權的真實 smoke 已完成；後續呼叫仍需新的明確美元額度與呼叫次數、人工標註／覆核，以及 Preview Remote env／受控存取設定。Repository 改為 Public 後，PR #3 的 Backend 與 Vercel checks 已成功，Preview URL 顯示 Ready；B 執行環境對該 URL 連線逾時，尚未完成 Backend smoke。Vercel project 設定、secret、保護與 runtime logs 仍由 Hobby owner A 管理。真實使用前須確認 Provider/平台保留政策。沒有可靠部署保護／支出阻擋，不公開 Remote；同源、CORS 或單 instance 計數不能當全站限流。
