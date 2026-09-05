@@ -7,6 +7,14 @@ import { normal } from "../../fixtures/demo";
 import { parseAnalysisResponse, LIMITS } from "../../lib/contracts/analysis";
 import { png, jpeg, multipart, type Part } from "../helpers/images";
 
+const providerAnalysis = {
+  riskScore: normal.riskScore,
+  category: normal.category,
+  summary: normal.summary,
+  signals: normal.signals,
+  recommendations: normal.recommendations,
+};
+
 // This test starts a real Next.js HTTP endpoint from a fresh copy of production
 // modules. Only the route dependency wiring differs. The SDK reaches a loopback
 // stub; no production source includes the stub URL, response selector or counter.
@@ -49,8 +57,8 @@ beforeAll(async () => {
       scenario === "insufficient"
         ? { status: "insufficient_evidence", reason: "unreadable" }
         : scenario === "unknown"
-          ? { status: "analyzed", ...normal, category: "unknown" }
-          : { status: "analyzed", ...normal };
+          ? { status: "analyzed", ...providerAnalysis, category: "unknown" }
+          : { status: "analyzed", ...providerAnalysis };
     const content =
       scenario === "refusal"
         ? [{ type: "refusal", refusal: "private-refusal" }]

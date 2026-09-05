@@ -7,14 +7,8 @@ import {
 import { providerOutcomeSchema } from "./provider";
 import { AppError } from "../errors";
 
-// Structured Outputs can still place JSON-looking delimiter debris inside a
-// syntactically valid string. Do not repair or expose such Provider text.
-const structuralTail = /(?:\}\s*\]|\]\s*\}|\}\s*,|\]\s*,)\s*$/u;
 function normalizeProviderText(value: string): string {
-  const normalized = value.trim();
-  if (structuralTail.test(normalized))
-    throw new AppError("analysis_failed", "schema");
-  return normalized;
+  return value.trim();
 }
 
 export function normalizeOutcome(raw: unknown): AnalysisResult {

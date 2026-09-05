@@ -6,7 +6,6 @@ export const providerOutcomeSchema = z.discriminatedUnion("status", [
   z.strictObject({
     status: z.literal("analyzed"),
     ...analysisFields,
-    riskLevel: z.string().optional(),
   }),
   z.strictObject({
     status: z.literal("insufficient_evidence"),

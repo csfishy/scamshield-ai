@@ -7,6 +7,8 @@ import {
   type ServerConfig,
 } from "../../lib/server/config";
 import { normalizeOutcome } from "../../lib/server/ai/normalize";
+import { providerOutcomeSchema } from "../../lib/server/ai/provider";
+import { analysisSchema } from "../../lib/contracts/analysis";
 import { AppError } from "../../lib/server/errors";
 import { emitTelemetry } from "../../lib/server/telemetry";
 import { normal } from "../../fixtures/demo";
@@ -21,15 +23,46 @@ export const config: ServerConfig = {
   apiTimeoutMs: 20000,
   promptVersion: PROMPT_VERSION,
 };
-const outcome = { status: "analyzed", ...normal };
+const outcome = {
+  status: "analyzed",
+  riskScore: normal.riskScore,
+  category: normal.category,
+  summary: normal.summary,
+  signals: normal.signals,
+  recommendations: normal.recommendations,
+};
 describe("normalization and errors", () => {
-  it("normal, unknown, insufficient/refusal and recomputed level", () => {
+  it("accepts analyzed output, trims text, and matches the shared contract", () => {
     expect(
-      normalizeOutcome({ ...outcome, summary: "  清楚  ", riskLevel: "wrong" }),
+      analysisSchema.parse(
+        normalizeOutcome({ ...outcome, summary: "  清楚  " }),
+      ),
     ).toMatchObject({ summary: "清楚", riskLevel: "low" });
     expect(normalizeOutcome({ ...outcome, category: "unknown" }).category).toBe(
       "unknown",
     );
+  });
+  it("accepts delimiter-like punctuation as legal string content", () => {
+    expect(
+      normalizeOutcome({
+        ...outcome,
+        summary: "合成摘要尾端符號 }],",
+        signals: [
+          {
+            type: "other",
+            severity: "low",
+            reason: "合成理由尾端符號 },",
+          },
+        ],
+        recommendations: ["合成建議尾端符號 ],"],
+      }),
+    ).toMatchObject({
+      summary: "合成摘要尾端符號 }],",
+      signals: [{ reason: "合成理由尾端符號 }," }],
+      recommendations: ["合成建議尾端符號 ],"],
+    });
+  });
+  it("accepts valid insufficient-evidence variants and maps them safely", () => {
     for (const reason of [
       "unreadable",
       "irrelevant",
@@ -39,19 +72,19 @@ describe("normalization and errors", () => {
       expect(() =>
         normalizeOutcome({ status: "insufficient_evidence", reason }),
       ).toThrow("insufficient_evidence");
+  });
+  it("strictly rejects extra fields, missing fields, and invalid enums", () => {
+    expect(
+      providerOutcomeSchema.safeParse({ ...outcome, riskLevel: "low" }).success,
+    ).toBe(false);
     for (const changes of [
       { riskScore: "50" },
       { riskScore: 3.4 },
       { category: "NONE" },
       { riskScore: 70 },
       { summary: "x".repeat(301) },
-      { summary: "可疑內容。}]," },
-      {
-        signals: [
-          { type: "other", severity: "low", reason: "可疑內容。}," },
-        ],
-      },
-      { recommendations: ["請聯絡官方。],"] },
+      { summary: undefined },
+      { signals: [{ type: "invalid", severity: "low", reason: "合成理由" }] },
       { recommendations: [] },
       { extra: 1 },
     ])
