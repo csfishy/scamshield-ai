@@ -10,7 +10,7 @@
 | M2 圖片、API、stub HTTP integration | 完成 | Node POST /analyze；固定 buffer 有界 multipart、欄位／BCP47、MIME／signature／副檔名、完整 sharp decode、EXIF／metadata、pixels／APNG／MPO／再編碼檢查；真正 Next HTTP＋SDK loopback stub 11 項通過 |
 | M3 Provider、prompt、normalization | 實作完成；真實連線未完成 | OpenAI Responses adapter、snapshot、prompt v1、strict output＋normalize、422／429／500／503、15s/20s deadline、取消、maxRetries=0、單次呼叫；unit／SDK transport tests 通過。key／採用确认／額度尚缺 |
 | M4 測試、真實 AI 評估 | 自動化完成；AI 品質未完成 | A 整合後 83 tests＋10 production browser E2E 通過；30 張 synthetic candidates、20/10 split、Demo 3×3 dry-run。人工標註全 pending；真實 Provider calls=0，不能聲稱品質 gate pass |
-| M5 Preview、部署準備、A 交接 | A 整合與 Preview build 完成；Remote 驗收未完成 | Draft PR #3 的 GitHub checks 與 Vercel deployment 顯示成功／Ready，Preview URL 已建立。B 執行環境連線該 URL 逾時，因此尚無 Preview `/analyze` smoke、Remote env、保護與成本控制證據 |
+| M5 Preview、部署準備、A 交接 | A 整合與前一版 Preview build 完成；最新版部署受阻 | A commit `0c39b45` 的 GitHub checks 與 Vercel deployment 成功／Ready，Preview URL 已建立。B 狀態文件 commit 的 Backend check 通過，但 Vercel 因 Git author `louislais` 尚無 project access 而拒絕部署；另 B 執行環境連線前一版 URL 逾時，因此尚無 Preview `/analyze` smoke、Remote env、保護與成本控制證據 |
 
 Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Preview。A UI／手機／PWA 另行驗收。
 
@@ -73,7 +73,7 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 | 2 POST /analyze contract | 本機實作與 HTTP stub integration 通過 |
 | 3 schema/image/normalize/timeout/cancel/calls | 本機測試通過 |
 | 4 真實 Provider 圖片紀錄與品質評估 | **未完成**：0 真實呼叫，人工標註 pending |
-| 5 Preview Backend 驗證 | **部分完成**：Vercel 顯示 deployment Ready 且有 URL；本執行環境連線逾時，尚未完成 Backend smoke／Remote 設定 |
+| 5 Preview Backend 驗證 | **部分完成**：A commit 的 deployment Ready 且有 URL；最新 B commit 因 Vercel project author access 被拒，本執行環境連線前一版 URL 亦逾時，尚未完成 Backend smoke／Remote 設定 |
 | 6 secret/log/no-store/access/cost 證據 | 本機前三者通過；**外部存取／成本控制未完成** |
 | 7 A shared schema/fixtures/endpoint 交接 | 完成；A 已引用 shared schema／fixtures 與 `/analyze`，A+B 自動化通過 |
 | 8 文件狀態／待決／限制同步 | 已同步八份主要文件與新增交接／評估紀錄 |
@@ -94,7 +94,7 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 
 - Local HEAD 與 `origin/codex/backend-handoff` 均為 `0c39b4549e95925a3931b5607fac2c7131c07a53`，拉取後 working tree clean。
 - `typecheck`、`lint`、83 Vitest、11 HTTP integration、production build、10 Playwright E2E、bundle scan 全部通過。
-- Draft PR：`https://github.com/csfishy/scamshield-ai/pull/3`；Vercel bot 回報 Preview deployment Ready：`https://scamshield-ai-git-codex-backend-handoff-csfishy-1632s-projects.vercel.app`。
+- Draft PR：`https://github.com/csfishy/scamshield-ai/pull/3`；A commit 的 Vercel deployment Ready：`https://scamshield-ai-git-codex-backend-handoff-csfishy-1632s-projects.vercel.app`。後續 B 文件 commit 的 Backend check 通過，但 Vercel 以 Git author 尚無 project access 拒絕建立新版 deployment。
 - `smoke:preview` 與內建瀏覽器均在連線階段逾時；未送出圖片、未呼叫 Provider，也未將網路逾時誤記為 API failure 或 Preview 通過。
 
 ### Goal 外部阻塞稽核
