@@ -65,4 +65,4 @@ Client timeout 建議 25 秒；Provider 15 秒、API 20 秒、Function 30 秒。
 
 ## B 的外部剩餘 gate
 
-需要 `AI_API_KEY`、明確美元額度與呼叫次數、Provider/模型採用確認、人工標註／覆核，以及 Preview Remote env／受控存取設定。PR #3 的 A commit 已有 Vercel Preview URL 且 deployment 顯示 Ready；後續 B 文件 commit 因 Git author 尚無 Vercel project access 而未部署，且 B 執行環境對前一版 URL 連線逾時，尚未完成 Backend smoke。真實使用前須確認 Provider/平台保留政策。沒有可靠部署保護／支出阻擋，不公開 Remote；同源、CORS 或單 instance 計數不能當全站限流。
+需要 `AI_API_KEY`、明確美元額度與呼叫次數、Provider/模型採用確認、人工標註／覆核，以及 Preview Remote env／受控存取設定。Repository 改為 Public 後，PR #3 的 Backend 與 Vercel checks 已成功，Preview URL 顯示 Ready；B 執行環境對該 URL 連線逾時，尚未完成 Backend smoke。Vercel project 設定、secret、保護與 runtime logs 仍由 Hobby owner A 管理。真實使用前須確認 Provider/平台保留政策。沒有可靠部署保護／支出阻擋，不公開 Remote；同源、CORS 或單 instance 計數不能當全站限流。
