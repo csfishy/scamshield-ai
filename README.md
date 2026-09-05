@@ -2,9 +2,9 @@
 
 以可疑截圖提供詐騙風險、原因與安全行動建議的 Web／PWA 專案。
 
-> **目前：Next.js＋TypeScript Backend 已建立，舊 Blazor Mock 保留。**
-> 2026-09-04：shared contract v2、圖片驗證、POST /analyze、OpenAI adapter 與本機測試已實作。
-> **真實 AI 評估、Vercel Preview、A 正式 UI／PWA 尚未驗收；整體 MVP 未完成。**
+> **目前：Next.js＋TypeScript 的正式 React UI、Node Backend 與 PWA shell 已整合，舊 Blazor Mock 保留作參考。**
+> shared contract v2、圖片驗證、POST /analyze、OpenAI adapter 與本機自動測試已實作。
+> **Repository 已記錄一次本機真實 AI 圖片 smoke 與受保護 Vercel Preview；完整 AI 品質、Preview Remote 圖片與手機實機 gate 尚未驗收。**
 > 實際證據與阻塞見 [B 進度](docs/backend-progress.md)；A 引用方式見 [整合交接](docs/backend-handoff.md)。
 
 ## 產品目標
@@ -19,18 +19,18 @@
 
 | 面向 | 目前 Repository | 目標 MVP（待實作） |
 | --- | --- | --- |
-| 前端 | Next.js 最小 shell；Blazor 留作參考 | A 完成正式 React UI |
-| API | 已實作 Node Route Handler、POST /analyze | Vercel Preview 驗證待完成 |
-| AI | OpenAI adapter＋版本化 prompt 已實作；未付費呼叫 | 真實評估與品質 gate |
-| PWA | manifest／icons／Blazor service worker | 遷移 manifest／icons，重做 cache／更新 |
-| 部署 | vercel.json 已轉 Next.js；本機 production build 通過 | Vercel Next.js＋Node.js Functions |
-| 上傳 | 新 Server v2 單圖 4 MiB；舊 client 10 MiB 不相容 | A 使用 shared LIMITS |
-| 測試 | TypeScript／API HTTP／最小 shell E2E，AI dry-run | 真實 AI／Preview／UI／手機 gate 待完成 |
+| 前端 | Mobile-first React UI；選圖、預覽、Demo／Remote、取消、手動重試與結果呈現 | iOS／Android 實機驗收 |
+| API | Node Route Handler `POST /analyze`；multipart 單圖、strict schema、錯誤映射與 `no-store` | Preview Remote 圖片與平台邊界驗收 |
+| AI | OpenAI Responses adapter＋版本化 prompt；已有一次本機真實圖片 smoke | 完整 development／holdout 品質 gate |
+| PWA | Next.js manifest、icons、Apple metadata、版本化 service worker 與離線備援頁 | 真實裝置安裝、更新與舊版遷移驗收 |
+| 部署 | Vercel Next.js 專案與受保護 Preview 已建立；Production 依紀錄仍為 mock、無 key | Remote／Production 發布 gate |
+| 上傳 | Client／Server 共用 v2 限制：單張 JPEG／PNG，最大 4 MiB | 維持 contract 同步 |
+| 測試 | TypeScript、unit／integration、production build、bundle scan 與 Playwright E2E 已通過 | 完整 AI／Preview／手機 gate 待完成 |
 | DB／會員／queue | 無 | MVP 不加入 |
 
-Provider 建議 OpenAI `gpt-4.1-mini-2025-04-14`；adapter 固定此 snapshot。
-採用確認、key、帳號額度與部署 URL 尚待提供。
-Vercel 設定存在不代表已完成部署驗收。
+Provider adapter 固定使用 OpenAI `gpt-4.1-mini-2025-04-14` snapshot。
+API key 不進 repository；Remote 環境仍須由部署者安全設定憑證與額度。
+受保護 Preview 的存在不代表 Remote API 或 Production 已完成部署驗收。
 
 ## 文件入口
 
@@ -49,9 +49,9 @@ Vercel 設定存在不代表已完成部署驗收。
 閱讀。API public 欄位以 contract 為準；不要將新文件當作舊 C# 已同步的證據。
 原 v1 contract 可由 Git 歷史查閱，與舊版一同保留至遷移驗收。
 
-## 目前程式的執行方式（Blazor）
+## Legacy Blazor 參考實作
 
-需要 .NET 10 SDK；以下只適用現有程式：
+需要 .NET 10 SDK；以下只適用保留的舊版程式，不是目前 Next.js MVP 的主要啟動方式：
 
 ```bash
 dotnet run --project src/app/ScamShield.Web/ScamShield.Web.csproj
@@ -75,6 +75,12 @@ Node 24.x（本機鎖定 24.19.0）、npm 12.0.2，根目錄執行：
 
 ```sh
 npm ci
+npm run dev
+```
+
+完整本機驗證：
+
+```sh
 npm run typecheck
 npm run lint
 npm test
@@ -82,24 +88,45 @@ npm run build
 npm run verify:bundle
 npx --no-install playwright install chromium
 npm run test:e2e
-npm run dev
 ```
 
 預設 mock，合法 `/analyze` 回 503，不會回假成功。A Demo 使用本機 fixtures。
-設定名稱見 `.env.example`；安全配置 `.env.local` 或 Vercel server env。
+將 `.env.example` 複製為未追蹤的 `.env.local`，或使用 Vercel server env：
+
+| 變數 | 用途 |
+| --- | --- |
+| `ANALYSIS_MODE` | `mock`（預設）或 `remote` |
+| `AI_PROVIDER` | Remote 必填；目前只接受 `openai` |
+| `AI_MODEL` | Remote 必填；目前只接受 `gpt-4.1-mini-2025-04-14` |
+| `AI_API_KEY` | Remote 必填的 server secret；不可使用 `NEXT_PUBLIC_*` |
+| `AI_TIMEOUT_MS` | 選填，預設／上限 15000 |
+| `ANALYSIS_TIMEOUT_MS` | 選填，預設／上限 20000，須至少比 Provider timeout 多 2000 ms |
+| `PROMPT_VERSION` | 選填；目前固定為 `scam-analysis-v1` |
+
 `npm run eval:ai` 預設為不付費 dry-run，真正執行需人工標註與額度授權，
 見 [評估操作](tests/evaluation/README.md)。
 本機與部署的區別、Windows 工具例外和實際命令結果見 [B 進度](docs/backend-progress.md)。
 
+### `/analyze` 現況
+
+- 僅接受 `POST multipart/form-data`；`image` 為必要的單張 JPEG／PNG，`source` 可為 `image`／`screenshot`（預設 `image`），`language` 預設 `zh-TW`。`source` 與 `language` 是分析 metadata，不是自由文字訊息輸入。
+- 圖片上限 4 MiB，request body 上限 4,300,000 bytes；每邊最多 12,000 px、總像素最多 24,000,000，動畫或多 frame 圖片不接受。
+- Remote 流程為圖片驗證／重新編碼 → OpenAI Provider → strict normalization → JSON 回應。成功欄位為 `riskScore`、`riskLevel`、`category`、`summary`、`signals`、`recommendations`。
+- 應用程式可控回應均為 JSON，包含 `Cache-Control: no-store` 與 `X-Request-Id`。錯誤依情況回 400／413／415／422／429／500／503；非 `POST` 回 405 並標示 `Allow: POST`。
+
+Vercel 以 `vercel.json` 設定 Next.js、`npm ci` 與 `npm run build`。Repository 僅記錄受登入保護的 Preview，未提供可視為正式產品的 Production URL；部署與驗收步驟見 [Deployment Runbook](docs/deployment-runbook.md)。
+
 ## 限制與未來方向
 
-- Backend／真實 adapter 已實作；尚無真實連線或品質驗收證據。
-- 目標 MVP 僅單張 JPEG／PNG；4 MiB、像素與 body 限制見 contract。
+- 真實 adapter 已完成一次本機圖片 smoke，但不代表目前 revision、完整案例集或詐騙辨識品質已通過驗收。
+- MVP 目前只支援使用者主動選擇／上傳單張 JPEG／PNG；沒有自由文字分析、Web Share Target，亦不會在 iOS／Android 背景持續讀取訊息。
 - 不包含 OCR pipeline、QR／URL scanner、Rule Engine 或 Threat Intelligence。
 - 不包含原生分享／SMS／Notification、會員／歷史／資料庫。
-- Remote 依賴網路與 Provider；離線僅預載 shell／明確 Demo。
+- Manifest、icons、Apple metadata 與 production service worker 已實作，但 iOS／Android 加入主畫面、更新與舊 Blazor PWA 遷移尚未完成實機驗收。
+- Remote 依賴網路與 Provider；離線只提供已快取的 shell／備援頁與可能已載入的 Demo，`/analyze`、圖片及分析結果不進 service worker cache。
 - 模型結果可能誤判；風險分數不是機率，低風險不是安全保證。
-- 目標應用程式不保存截圖；Provider／平台保留政策需另行確認。
+- 應用程式不持久保存截圖，但 Provider／平台保留政策仍需另行確認。
+- 目前是 Hackathon MVP，尚未完成正式 security product 所需的完整模型評估、公開服務防濫用／成本控制與 production hardening。
 
 上述未納入功能依產品驗證再排入後續，不列入三日交付。
 
@@ -118,5 +145,6 @@ npm run dev
 
 ## License
 
-TBD。License 尚待團隊確認，根目錄 LICENSE 尚未加入；
-本次文件更新不代替授權決策。
+本專案採用自訂的 [ScamShield Source Code License](LICENSE)，屬 source-available、
+非開源授權。允許 Hackathon 評審／展示，以及個人非商業的閱讀、研究與本機測試；
+未經著作權人書面同意，不得商業使用、重新散布或散布修改版本與衍生作品。
