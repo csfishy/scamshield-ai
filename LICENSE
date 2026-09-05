@@ -1,0 +1,117 @@
+ScamShield Source Code License
+Version 1.0
+
+Copyright (c) 2026 ScamShield contributors
+All rights reserved.
+
+This license applies to the original source code, documentation, assets, and
+other materials in this repository for which the ScamShield contributors hold
+copyright (the "Software"). Third-party components remain subject to their own
+licenses. This is a source-available license. Public access to this repository,
+including access through GitHub, does not grant any rights beyond those stated
+expressly below.
+
+1. Permitted Uses
+
+Subject to compliance with this license, you may:
+
+a. View, read, and study the Software for personal, educational, research, or
+   evaluation purposes that are non-commercial.
+b. Download or clone the Software and run it locally for personal,
+   non-commercial learning, research, security review, or testing.
+c. Make private modifications solely for personal, non-commercial learning,
+   research, or testing, provided that neither the modifications nor any
+   resulting derivative work are published, shared, hosted for others, or
+   otherwise distributed.
+d. Review, evaluate, and demonstrate the unmodified Software for hackathon
+   judging, mentoring, exhibition, or assessment, provided that the Software is
+   properly attributed and is not otherwise commercially exploited.
+
+These permissions are limited, non-exclusive, non-transferable, and do not
+include any right to redistribute or commercially use the Software.
+
+2. Restrictions
+
+Unless you first obtain the copyright holder's express written permission, you
+may not:
+
+a. Copy the Software except as strictly necessary for a permitted use above.
+b. Publish, mirror, upload, share, transmit, or otherwise redistribute the
+   Software, whether modified or unmodified, in source, binary, or any other
+   form.
+c. Distribute, publish, host for others, or otherwise make available any
+   modification, adaptation, translation, or derivative work based on the
+   Software.
+d. Present the Software, or a substantially similar derivative, as your own
+   product, project, or service, or remove or alter copyright, attribution, or
+   proprietary notices.
+e. Sell, rent, lease, sublicense, assign, transfer, or commercially exploit the
+   Software or any rights under this license.
+f. Incorporate or integrate the Software or a derivative work into a commercial
+   product, service, platform, consulting engagement, or hosted offering.
+g. Use ScamShield names, logos, or branding in a way that suggests ownership,
+   endorsement, sponsorship, or affiliation without written permission.
+
+Any permissions granted by this license terminate automatically upon breach.
+After termination, you must stop using the Software and delete all copies and
+private modifications in your possession or control.
+
+3. Ownership
+
+The Software is licensed, not sold. The copyright holders retain all ownership,
+copyright, and other intellectual property rights in the Software. No ownership
+right, trademark right, patent right, or other right is transferred by this
+license. All rights not expressly granted are reserved. Making the repository
+publicly visible on GitHub does not waive these rights or imply permission to
+use, copy, modify, or distribute the Software beyond this license.
+
+4. No Commercial Use
+
+Commercial use is prohibited without prior written permission. Commercial use
+includes any use intended for or directed toward commercial advantage, business
+operations, monetary compensation, or revenue generation, whether direct or
+indirect. Prohibited uses include selling or licensing the Software, offering it
+as a paid or monetized service, using it in client work, and integrating it into
+a commercial product or internal business system.
+
+The hackathon activities expressly permitted in Section 1 remain permitted even
+when an event has commercial sponsors, provided that the Software itself is not
+commercially exploited.
+
+5. No Redistribution or Derivative Distribution
+
+You may not redistribute the Software or make it available to any third party,
+either by itself or as part of another repository, package, application,
+service, or collection. You may not distribute modified versions, derivative
+works, ports, adaptations, translations, or builds produced from modified
+source. Private modifications allowed by Section 1 must remain under your sole
+control and may not be uploaded to a public or shared repository.
+
+6. Disclaimer of Warranty
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED
+"AS IS" AND "WITH ALL FAULTS," WITHOUT WARRANTY OF ANY KIND, EXPRESS, IMPLIED,
+OR STATUTORY, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY, RELIABILITY, AVAILABILITY, OR
+SECURITY. THE COPYRIGHT HOLDERS AND CONTRIBUTORS DO NOT WARRANT THAT THE
+SOFTWARE IS CORRECT, COMPLETE, SAFE, ERROR-FREE, OR SUITABLE FOR ANY PARTICULAR
+USE, OR THAT IT WILL IDENTIFY, PREVENT, OR ACCURATELY ASSESS FRAUD OR SCAMS.
+
+7. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL ANY
+COPYRIGHT HOLDER OR CONTRIBUTOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF
+DATA, PROFITS, REVENUE, BUSINESS, REPUTATION, SECURITY, OR USE, ARISING FROM OR
+RELATED TO THE SOFTWARE OR THIS LICENSE, REGARDLESS OF THE THEORY OF LIABILITY
+AND EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+8. Permission Requests
+
+Any use outside the permissions stated in this license requires prior written
+permission from the applicable copyright holder. Requests must be made through
+a contact channel expressly published by the copyright holder in this
+repository or on the official project page. Silence, lack of response, or public
+availability of the Software does not constitute permission. Any additional
+permission is valid only to the extent stated in a written authorization from
+the applicable copyright holder.

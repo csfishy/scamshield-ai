@@ -1,0 +1,11 @@
+import { createAnalyzeHandler } from "../../lib/server/analyze";
+export const runtime = "nodejs";
+export const maxDuration = 30;
+export const dynamic = "force-dynamic";
+export const POST = createAnalyzeHandler();
+export const GET = POST;
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;
+export const OPTIONS = POST;
+export const HEAD = POST;

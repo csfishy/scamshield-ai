@@ -1,264 +1,124 @@
-# Web/PWA AI 防詐 App 初步計劃書
+# ScamShield AI 產品計畫
 
-團隊討論版｜產品定位、技術架構與 MVP 規劃
+- 版本：2.0｜2026-09-04
+- 狀態：Next.js MVP 的 A+B 實作已整合；單次真實 AI smoke 已人工覆核，受保護 Preview 已部署；完整品質／Remote／實機 gate 尚未驗收，Blazor Mock 保留
+- 產品範圍文件；API 欄位以 [api-contract.md](api-contract.md) 為準
 
-## 一、專案目標
+## 1. 問題與價值
 
-開發一套以 Web 為核心、可由手機瀏覽器安裝成 PWA 的 AI 防詐 App，協助使用者在點擊網址、匯款、提供 OTP 或個人資料之前，先完成一層快速風險檢查。
+使用者在點擊連結、付款或提供 OTP 前，可能無法辨識訊息中的可疑要求。
+ScamShield AI 讓使用者提交一張截圖，取得有依據的風險提示與可執行的安全建議。
 
-- 提供詐騙風險分數與風險等級
-- 清楚列出可疑原因，而不是只給出「是／不是詐騙」
-- 辨識常見詐騙類型與社交工程手法
-- 提供使用者下一步安全建議
-- 逐步建立可跨平台、可擴充的 Scam Intelligence 平台
+第一階段驗證兩件事：
 
-第一階段不追求完全攔截所有詐騙，而是先驗證「使用者願不願意把可疑內容交給 App 分析」以及「分析結果是否足以改變高風險操作行為」。
+1. 使用者是否願意把可疑截圖交給產品分析。
+2. 分析理由與建議是否足以幫助使用者停下高風險操作。
 
-## 二、核心使用情境
+本產品是主動提交的輔助工具，不宣稱背景攔截、不保證能確認所有詐騙。
 
-**1. 圖片／截圖防詐**
+## 2. 初始使用者與情境
 
-使用者可先儲存 LINE、Messenger、Instagram、Threads、Email、Safari 或其他 App 中的可疑圖片或截圖，再從 ScamShield Web/PWA 的檔案選擇器提交分析。
+MVP 先以台灣繁體中文截圖作主要驗證情境，使用桌面或手機瀏覽器：
+LINE／社群聊天、物流通知、客服、付款／OTP 要求、投資與冒名話術。
 
-- OCR 文字辨識
-- QR Code 與 Barcode 辨識
-- URL、電話與 Email 擷取
-- 品牌名稱與官方網域比對
-- 金融資訊、OTP、匯款與帳戶要求辨識
-- 緊急、恐嚇、催促與冒名情境辨識
-- Multimodal AI 進行整張圖片與上下文分析
+不把「出現連結／付款」本身視為詐騙。正常聊天與合理通知也是必要測試案例。
+對目標族群的使用意願與理解程度仍待訪談／實测，不能視為已驗證需求。
 
-**2. 文字防詐**
-
-使用者可分享聊天文字、簡訊內容或手動貼上文字，系統判斷假客服、假投資、冒充親友、感情詐騙、政府或銀行冒名等情境。
-
-**3. URL／QR Code 防詐**
-
-- 檢查 Domain 格式與品牌是否一致
-- 判斷短網址、可疑 TLD、仿冒網域與拼字近似
-- 解析 QR Code 真正目的網址
-- 未來串接惡意網址與 Threat Intelligence 資料庫
-
-**4. SMS 與通知防詐**
-
-iOS 可利用 Message Filter Extension 處理可支援的 SMS 情境；Android 則可在使用者授權下進一步使用 Notification Listener 分析部分通知內容。兩平台能力不同，因此核心產品不可依賴「一定能讀取所有通知」。
-
-## 三、平台限制與產品策略
-
-**Web/PWA（MVP）**
-
-- 同一套 Responsive Web UI 支援桌面與手機瀏覽器
-- 使用瀏覽器圖片選擇器取得使用者主動選取的內容
-- 支援的瀏覽器可將網站安裝到主畫面，提供接近 App 的啟動體驗
-- 不依賴 App Store／Play Store，也不包含原生 Share Extension、SMS Filter 或 Notification Listener
-- PWA 安裝、service worker 與離線 shell 在正式環境需要 HTTPS；實際分析仍需網路連線至 Backend
-
-**原生平台能力（Post-MVP）**
-
-- iOS／Android 分享入口、SMS Filter 或 Notification Listener 視驗證結果另行開發
-- 核心 API contract 與分析結果模型保持平台無關，未來可供原生 extension 或其他 client 重用
-
-## 四、核心架構原則
-
-最重要的設計原則：AI 防詐核心不得依賴特定前端平台。Web/PWA 只負責取得使用者選擇的圖片、呼叫 Backend，再顯示標準化結果。
-
-建議資料流：
+## 3. MVP 核心體驗
 
 ```text
-Web/PWA 圖片輸入 → POST /analyze → Backend Scam Engine → Multimodal AI → ScamAnalysisResult
+選擇圖片 → 預覽／雲端傳輸告知 → 明確開始分析
+→ 風險等級與指標 → 可疑理由 → 安全行動
+或：無法判斷／失敗 → 換圖／適當手動重試
 ```
 
-如此未來增加原生 App、Browser Extension、LINE Bot 或第三方 SDK 時，不需要重新設計 AI 核心。
+- 單張 JPEG／PNG，最大 4 MiB；不接受 HEIC、動畫或多圖。
+- 圖片限制、解碼與 API 行為詳見 contract，Client 不自行放寬。
+- 評分只有 low／medium／high 三級；不使用舊計畫的 Suspicious 第四級。
+- 分數 0–100 是風險指標，不是詐騙機率；低分不等於安全保證。
+- category=unknown 表示能評估風險但無法可靠分類。
+- 圖片無法讀取／無關／證據不足以分析時顯示「無法判斷」，不提供假低分。
+- 結果提供具體原因與下一步，不自動開啟截圖中的連結。
 
-## 五、標準輸入模型 ScamAnalysisInput
+## 4. 目標技術與實作現況
 
-- Source：Image、Screenshot、SharedText、URL、QRCode、SMS、Notification、WebPage、ManualInput
-- Raw Text／OCR Text
-- URLs／QR Codes
-- Phone Numbers／Email Addresses
-- Claimed Brand
-- Image Data 或 Image Reference
-- Language
-- Platform Metadata
+目標：Next.js＋React＋TypeScript 前端，Next.js Route Handler 後端，
+Vercel 同源部署，一個真實 Multimodal AI Provider。
 
-## 六、AI 防詐分析流程
+現有：根 Next.js、A 正式 UI/PWA、B Backend／shared schema／OpenAI adapter 與
+自動測試已整合；一次本機真實 Provider 圖片 smoke 已獲人工語意確認，受保護
+Preview 已部署。完整資料集、Preview Remote API 與手機／PWA 實機仍待驗收。
+舊 .NET 10 Blazor／PWA／Mock client 保留。實測與阻塞見 [B 進度](backend-progress.md)。
 
-整體建議採多層判斷，不以單一大型語言模型決定結果。
+詳細技術責任與資料流：[architecture.md](architecture.md)、[sdd.md](sdd.md)。
 
-```text
-輸入 → 正規化 → OCR／QR／URL Extraction → Local Rule Engine → Threat Intelligence → AI Scam Classifier → Multimodal AI → Risk Aggregator → 結果
-```
+## 5. 本次交付與排除範圍
 
-**第一層：裝置端分析**
+| MVP 必要 | 後續方向 |
+| --- | --- |
+| 截圖選擇、預覽、圖片驗證 | 原始大圖壓縮／暫存／直傳 |
+| 真實雲端 AI 與穩定 public schema | OCR／QR／URL 擷取 |
+| 結果、證據不足、錯誤與重試 | Rule Engine／Threat Intelligence |
+| 明確 Mock fixtures／展示備援 | 原生分享入口、SMS／Notification |
+| 手機 Web、PWA shell／更新 | 瀏覽器 extension、phone/domain reputation |
+| 評估集、成本與存取控制 | 會員、歷史、回報、DB／queue |
 
-- OCR、QR Code、URL、電話等基礎擷取
-- 基本關鍵字與本地規則
-- 可疑品牌與網域初步比對
-- 低風險內容盡可能在裝置端完成，降低隱私風險與 API 成本
+真實 Provider 串接屬 MVP 必要工作，不再列為排除項目。
+Rule Engine／Share Sheet 不放入三日「有空順手做」清單。
 
-**第二層：Rule Engine**
+## 6. 結果文案與信任
 
-規則引擎提供可解釋且快速的基礎分數，例如 OTP、網銀密碼、私人 LINE、官方網域不一致、保證獲利、緊急匯款等訊號。規則只作為特徵來源，不單獨取代 AI 判斷。
+- 每個可疑理由指向可見內容；不可把推論描述成已查證事實。
+- 不宣稱查過官方網域／惡意網址資料庫，除非未來確實加入該能力。
+- 分數旁標示「風險指標，非詐騙機率」。
+- 涉及敏感操作時建議由使用者自行取得官方聯絡方式查證。
+- Demo 顯示「示範資料，未分析此圖片」，不能拿固定結果冒充任意圖片分析。
+- 非必要不重述截圖內的完整個資。
+- 上傳限制與雲端傳輸在提交前可見，不只藏在文件。
 
-**第三層：AI 語意分析**
+## 7. 隱私與資料使用
 
-- 詐騙類型分類
-- 對話與上下文理解
-- 假客服、假政府、假銀行與冒充親友情境辨識
-- 投資、交友、社交工程與帳號盜用話術辨識
+應用程式不持久保存使用者截圖、完整分析與 filename；
+不上傳到 public storage／CDN，不寫入 browser storage／service worker cache。
+Server 處理後釋放資源；不把原始 Provider response 放入日誌。
 
-**第四層：Multimodal AI**
+畫面須告知圖片會送往 Backend 與所選 AI Provider；第一版尚無自動個資遮罩。
+Provider／平台可能有自己的保留政策，B＋產品在開放 Remote 前確認並記錄，
+不能將本機不存圖等同整條鏈路零保存。
 
-針對截圖或圖片理解 UI、文字、Logo、網址、QR Code 與整體情境，可用於辨識假交易平台、假公文、假客服聊天截圖、假銀行頁面與投資獲利截圖等。
+測試只用自製／授權、去識別化素材；測試案例留存與使用者資料分開管理。
 
-## 七、風險結果 ScamAnalysisResult
+## 8. 驗證指標與初始目標
 
-- Risk Score：0–100
-- Risk Level：Low／Medium／Suspicious／High
-- Category：Phishing、Fake Customer Service、Investment Scam、Romance Scam、Government Impersonation、Bank Impersonation、Account Theft、Fake Shopping、Unknown
-- Signals：列出具體可疑原因
-- Recommendations：提供下一步安全建議
+| 指標 | 如何驗證 |
+| --- | --- |
+| 操作成功與理解 | 觀察使用者選圖、理解結果、選擇下一步 |
+| 可分析案例成功率 | 有效 200／人工判定可分析案例，不靠全回 422 |
+| 高風險漏判／正常誤判 | development＋holdout，逐例記錄 |
+| 理由是否有證據 | 人工對照圖片，標記虛構／過度推論 |
+| 延遲 | 成功目標 p50 ≤10 秒、p95 ≤20 秒；錯誤與逾時並列 |
+| 成本 | usage、每次估計與總額；未知不記 0 |
+| 信任與行為 | 是否理解分數非機率，是否知道如何官方查證 |
 
-產品顯示重點不是單純「詐騙機率 92%」，而是讓使用者知道為什麼可疑、哪些行為不能做、如何透過官方管道查證。
+數值與測試方法見 [test-plan.md](test-plan.md)。所有目標尚待實測，
+小型案例集不支援「整體準確率」宣傳。訪談觀察也不能直接宣稱已降低受騙率。
 
-## 八、跨平台技術架構
+## 9. 三分鐘展示故事
 
-**Web/PWA App**
+1. 問題：在付款或提供 OTP 前，需要容易理解的風險確認。
+2. Live：假物流或假客服截圖，展示具體訊號與安全建議。
+3. 對照：正常訊息可獲低風險；資訊不足有明確無法判斷。
+4. 技術：Next.js＋TypeScript＋Vercel＋Multimodal AI＋schema validation。
+5. 願景：之後再評估 OCR／URL／原生入口。
 
-- .NET 10 Blazor WebAssembly
-- Razor／HTML／CSS Responsive UI
-- Browser `InputFile` 圖片選擇與 client-side preview
-- Web app manifest 與 service worker
-- Mock／Remote analysis service abstraction
-- Contract-aligned models 與 JSON serialization
+備援依序：真實 API → 明確切 Demo fixtures → 預錄影片。
+展示中說明當前模式，不宣稱固定 fixtures 的結果為現場 AI 推論。
 
-**Backend**
+## 10. 開發前／發布前決策
 
-- .NET 10 ASP.NET Core Minimal API
-- Scam Analysis API
-- Multimodal AI Gateway
-- Request validation
-- Provider abstraction
-- Result normalization 與 error mapping
+B＋產品需確認 Provider、預算、資料保留、限流／存取方式；
+產品＋企劃準備案例授權與三個 Demo；A＋B 確認 4 MiB／422 contract。
+Owner、期限與未完成的處理見 [SDD 待決清單](sdd.md#13-待決事項與完成時點)。
 
-Database、queue、會員系統、OCR、QR、Threat Intelligence 與原生 platform adapter 均不在三日 MVP 內。
-
-## 九、技術選型建議
-
-**目前建議**
-
-第一階段已選定 `.NET 10 Blazor WebAssembly PWA`。它以單一 Web codebase 提供桌面與手機 responsive UI，並讓支援的瀏覽器安裝至主畫面。Backend 維持 `.NET 10 ASP.NET Core Minimal API`，前後端共用已凍結的 JSON contract。
-
-.NET MAUI、Kotlin Multiplatform 與原生 iOS／Android client 不屬於本次 MVP；若日後需要 Share Extension 或 Notification Listener，再依實際平台需求評估。
-
-## 十、建議的抽象介面
-
-- ITextRecognizer
-- IQRCodeScanner
-- IShareReceiver
-- INotificationReader
-- IScamAnalyzer
-- IThreatIntelligenceService
-- IRiskCalculator
-
-核心程式只依賴介面，不直接依賴 UIKit、Android SDK、Vision 或 ML Kit。平台層可自由替換實作。
-
-## 十一、MVP 第一階段
-
-第一版只聚焦「透過 Web/PWA 選取圖片／截圖進行防詐分析」，同一套介面支援桌面與手機瀏覽器。
-
-流程：
-
-```text
-選取圖片 → Web/PWA preview → POST /analyze → Multimodal AI Analysis → Risk Score → 可疑原因＋安全建議
-```
-
-**MVP 必要功能**
-
-- JPEG／PNG 圖片選擇、驗證與 preview
-- Responsive Web/PWA UI
-- `/analyze` multipart request
-- Cloud Multimodal AI 分析
-- 統一的風險結果頁、loading、error 與 retry
-- Mock mode，確保 Demo 不受 Backend 或網路狀態影響
-
-**MVP 暫不納入**
-
-- 原生 iOS／Android App 與分享入口
-- OCR、QR Code／URL Extraction 與 Rule Engine
-- 全面通知監控
-- 完整電話 Reputation
-- 大型群眾回報平台
-- 複雜會員與社交功能
-- 完整瀏覽器即時攔截
-- 自建大型 Threat Intelligence Database
-
-## 十二、第二階段
-
-- 純文字分享
-- URL／QR Code 單獨分析
-- OCR 與 Rule Engine
-- 原生 iOS／Android 分享入口
-- iOS Message Filter
-- Android Notification Listener
-- 官方品牌 Domain Database
-- 已知詐騙網址資料庫
-- 使用者回報機制
-
-## 十三、第三階段：Scam Intelligence Platform
-
-- 電話 Reputation
-- URL／Domain Reputation
-- 詐騙話術與樣板資料庫
-- 即時詐騙趨勢與新型詐騙警示
-- 匿名群眾回報與模式統計
-- 第三方 API／SDK
-- Browser Extension、原生 App、Windows、LINE Bot 等入口
-
-## 十四、隱私與資安原則
-
-- 可在瀏覽器完成的檔案類型與大小驗證優先留在 client 端
-- 不預設永久儲存使用者原始截圖
-- 送往 Cloud AI 前評估遮罩姓名、電話、Email、身分證、信用卡與其他個資
-- 分析資料設定明確保存期限與刪除政策
-- API 傳輸全程加密，後端服務採最小權限設計
-- 使用者應清楚知道選取的圖片會送往 Backend 與 AI Provider
-- AI 分析結果定位為風險輔助判斷，不宣稱百分之百正確
-
-## 十五、MVP 驗證指標
-
-- 分享圖片到取得結果所需時間
-- 圖片選擇與 API request 成功率
-- AI 能否正確指出可疑訊號
-- 高風險案例漏判率與正常案例誤判率
-- 使用者是否理解結果與建議
-- 使用者看到警告後是否停止點擊、匯款或提供敏感資訊
-- 單次分析平均 Cloud AI 成本
-
-## 十六、初步開發順序
-
-1. 凍結 `/analyze` API contract 與 `ScamAnalysisResult`
-2. 建立 Blazor WebAssembly PWA skeleton
-3. 完成圖片選擇、validation、preview 與 responsive UI
-4. 完成 Mock／Remote analysis service
-5. Backend 實作 `/analyze` 與 provider abstraction
-6. 串接 Multimodal AI Provider
-7. 進行前後端 integration 與 error mapping 測試
-8. 建立 Demo 案例集與誤判分析流程
-9. 部署 HTTPS Web/PWA 並進行桌面、iOS、Android 瀏覽器驗證
-
-## 十七、團隊第一輪需要決策的問題
-
-- 第一版技術路線已決定採 .NET 10 Blazor WebAssembly PWA。
-- Cloud AI 使用哪一個 Multimodal Provider？是否需保留 Provider Abstraction？
-- 第一版 Risk Score 如何定義與校正？
-- 哪些資料允許送到 Cloud？哪些必須留在 Device？
-- MVP 測試案例與 Ground Truth 從哪裡建立？
-- 產品是否先鎖定台灣繁體中文詐騙情境？
-- 第一階段成功的 Go／No-Go 指標為何？
-
-## 十八、目前建議結論
-
-第一版以「Web/PWA 圖片／截圖防詐」作為 MVP。技術上採 Blazor WebAssembly PWA + ASP.NET Core Minimal API + Cloud Multimodal AI 的最小架構，先把圖片提交、`ScamAnalysisResult`、錯誤處理與 AI Gateway 串接穩定。
-
-這樣可用單一 Web codebase 快速驗證產品價值，讓手機透過 PWA 使用，同時保留原生分享入口、主動通知預警、瀏覽器擴充與第三方 SDK 的後續發展空間。
+License、團隊姓名、展示 URL、影片與 Sponsor 技術目前仍 TBD，
+不在本次文件更新時任意填入。

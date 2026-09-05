@@ -24,3 +24,13 @@ node_modules/
 # Build output
 dist/
 build/
+
+# Next.js / local tooling / private evaluation results
+.next/
+.next-test/
+.vercel/
+.tools/
+*.tsbuildinfo
+playwright-report/
+test-results/
+tests/evaluation/runs/

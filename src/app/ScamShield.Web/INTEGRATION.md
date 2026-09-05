@@ -1,5 +1,14 @@
 # ScamShield Web / PWA Integration Notes
 
+> **Legacy implementation guide — 2026-09-04.** This file describes the existing
+> .NET 10 Blazor client and its v1 behavior (including the 10 MiB client limit).
+> The target architecture is now Next.js + TypeScript + Vercel, but that migration
+> has not been implemented. Use the [SDD](../../../docs/sdd.md),
+> [API contract v2](../../../docs/api-contract.md), and
+> [deployment runbook](../../../docs/deployment-runbook.md) for new development.
+> These instructions remain valid only for the current Blazor source; the current
+> `vercel.json` and `wwwroot/appsettings.json` have not been migrated.
+
 ## Runtime and installation
 
 ScamShield Web is a standalone .NET 10 Blazor WebAssembly PWA. It runs entirely
@@ -38,8 +47,10 @@ source=screenshot
 language=zh-TW
 ```
 
-It deserializes the frozen success and error schemas from
-`docs/api-contract.md`. The UI displays Backend `riskLevel` directly and never
+It deserializes the original v1 success and error schemas (available in Git
+history before the Next.js documentation migration). The current
+`docs/api-contract.md` describes target v2 and is not fully implemented by this
+client. The UI displays Backend `riskLevel` directly and never
 derives a different level from `riskScore`.
 
 ## Browser networking and CORS
