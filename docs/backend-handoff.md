@@ -2,7 +2,7 @@
 
 ## 實作與驗收邊界
 
-Next.js 根專案與 B Backend 已可在本機執行。真實 adapter 已實作，但**未使用真實憑證呼叫、AI 品質未驗收、Vercel Preview 未部署**。目前頁面僅最小 shell；A 接手 `app/layout.tsx`、`app/page.tsx` 及正式 UI／PWA，B 沒有移植整個前端。舊 `src/app/ScamShield.Web*` 保留。
+Next.js 根專案與 B Backend 已可在本機執行。A 已在同一分支完成正式 UI／PWA 自動化範圍，A+B 整合後的 typecheck、lint、83 Vitest、11 HTTP integration、production build 與 10 Playwright E2E 均通過。真實 adapter 已實作，但**未使用真實憑證呼叫、AI 品質未驗收、Preview Remote Backend 尚未完成 smoke**。舊 `src/app/ScamShield.Web*` 保留。
 
 進度與實測紀錄：[backend-progress.md](backend-progress.md)。API public contract 維持 v2，未增減欄位或更名 endpoint。
 
@@ -57,13 +57,12 @@ Client timeout 建議 25 秒；Provider 15 秒、API 20 秒、Function 30 秒。
 
 所有 `lib/server/*` 與 prompt 都是 server-only。A 不可在 Client import config/provider；Server Component 若需傳 mode，只傳 allowlist 的 mode 字串與 25000 timeout 數值，不能序列化 config。`.env.local` 或 Vercel server env 放 key，不能使用 NEXT_PUBLIC_*。
 
-## A 尚需完成
+## A 已完成與尚待實機項目
 
-- 正式 React UI、選圖／object URL、busy／generation guard、純文字結果、manual retry、422／平台 fallback。
-- 明確上傳告知與「風險指標，非詐騙機率」；低分不保證安全；不把可疑網址自動變連結。
-- PWA 只 cache 無敏感靜態資產；不可 cache /analyze、POST、截圖／分析結果。舊 worker 遷移、手機實機驗證由 A 主責。
-- 本機 E2E 僅最小 shell＋Backend smoke，不代表正式 UI／手機／PWA 通過。
+- 已完成正式 React UI、選圖／object URL、busy／generation guard、純文字結果、manual retry、422／平台 fallback，以及明確上傳與風險指標告知。
+- 已完成 PWA 靜態快取邊界；`/analyze`、POST、截圖與分析結果不進 cache。
+- 尚待真實 iOS Safari／Android Chrome、舊 Blazor PWA 遷移、多分頁、安裝／更新與 rollback 實機驗證；詳見 `frontend-validation-2026-09-04.md`。
 
 ## B 的外部剩餘 gate
 
-需要 `AI_API_KEY`、明確美元額度與呼叫次數、Provider/模型採用確認、人工標註／覆核、Vercel 專案與受控存取設定。真實使用前須確認 Provider/平台保留政策。沒有可靠部署保護／支出阻擋，不公開 Remote；同源、CORS 或單 instance 計數不能當全站限流。
+需要 `AI_API_KEY`、明確美元額度與呼叫次數、Provider/模型採用確認、人工標註／覆核，以及 Preview Remote env／受控存取設定。PR #3 已有 Vercel Preview URL 且 deployment 顯示 Ready，但 B 執行環境對該 URL 連線逾時，尚未完成 Backend smoke。真實使用前須確認 Provider/平台保留政策。沒有可靠部署保護／支出阻擋，不公開 Remote；同源、CORS 或單 instance 計數不能當全站限流。

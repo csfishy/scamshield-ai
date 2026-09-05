@@ -9,8 +9,8 @@
 | M1 現況、基礎、shared contract | 完成 | 根 Next.js、strict TS、精確版本／npm lock、scripts、strict public schema／enum／limits、正常／假物流／假客服 fixtures；乾淨安裝與 contract tests 通過 |
 | M2 圖片、API、stub HTTP integration | 完成 | Node POST /analyze；固定 buffer 有界 multipart、欄位／BCP47、MIME／signature／副檔名、完整 sharp decode、EXIF／metadata、pixels／APNG／MPO／再編碼檢查；真正 Next HTTP＋SDK loopback stub 11 項通過 |
 | M3 Provider、prompt、normalization | 實作完成；真實連線未完成 | OpenAI Responses adapter、snapshot、prompt v1、strict output＋normalize、422／429／500／503、15s/20s deadline、取消、maxRetries=0、單次呼叫；unit／SDK transport tests 通過。key／採用确认／額度尚缺 |
-| M4 測試、真實 AI 評估 | 自動化完成；AI 品質未完成 | 69 tests＋1 production browser smoke 通過；30 張 synthetic candidates、20/10 split、Demo 3×3 dry-run。人工標註全 pending；真實 Provider calls=0，不能聲稱品質 gate pass |
-| M5 Preview、部署準備、A 交接 | 準備與交接完成；Preview 未完成 | Vercel Next.js 設定、prompt/sharp trace、CI workflow、smoke 工具與交接文件已建立；沒有已授權 Vercel project/link/token／Preview URL／保護和成本控制證據 |
+| M4 測試、真實 AI 評估 | 自動化完成；AI 品質未完成 | A 整合後 83 tests＋10 production browser E2E 通過；30 張 synthetic candidates、20/10 split、Demo 3×3 dry-run。人工標註全 pending；真實 Provider calls=0，不能聲稱品質 gate pass |
+| M5 Preview、部署準備、A 交接 | A 整合與 Preview build 完成；Remote 驗收未完成 | Draft PR #3 的 GitHub checks 與 Vercel deployment 顯示成功／Ready，Preview URL 已建立。B 執行環境連線該 URL 逾時，因此尚無 Preview `/analyze` smoke、Remote env、保護與成本控制證據 |
 
 Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Preview。A UI／手機／PWA 另行驗收。
 
@@ -18,7 +18,7 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 
 - `package.json`、`package-lock.json`、`tsconfig.json`、`next.config.ts`、`vercel.json`、`.env.example`：根專案／scripts／server 設定；舊版 source 未刪除或改寫。
 - `lib/contracts/analysis.ts`、`fixtures/demo/index.ts`：public v2 型別與 runtime schema、唯一 level mapping、status/code/retryable、三組 Demo 與 422。
-- `app/analyze/route.ts`、`lib/server/analyze.ts`、`multipart.ts`、`image-validation.ts`：完整 request 管線。`app/layout.tsx`／`page.tsx` 只最小 shell，A 接手。
+- `app/analyze/route.ts`、`lib/server/analyze.ts`、`multipart.ts`、`image-validation.ts`：完整 request 管線。A 已在同一分支完成正式 React 分析流程與 PWA；public contract 與 Backend route 未改名。
 - `lib/server/ai/providers/openai.ts`、`ai/provider.ts`、`ai/normalize.ts`、`prompts/scam-analysis-v1.md`：單一真實 adapter 實作與版本化 prompt。
 - `lib/server/config.ts`、`deadline.ts`、`errors.ts`、`telemetry.ts`：fail-closed 設定、取消與 timeout、固定安全訊息、runtime log allowlist。
 - `tests/unit/*`、`tests/integration/http.test.ts`、`tests/e2e/backend-shell.spec.ts`：不付費驗證。HTTP stub 只在 `.tools/http-app` 測試副本的 route wiring 注入，不進正式 endpoint。
@@ -38,12 +38,12 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 | npm ci | 最終乾淨安裝成功：391 packages added，392 audited，0 vulnerabilities |
 | npm run typecheck | 通過，production build 亦再次完成 TypeScript 檢查 |
 | npm run lint | 通過 |
-| npm test | **6 files、69 tests 通過**；包含 contract／圖片／pipeline／SDK／evaluation／真正 Next HTTP integration |
+| npm test | A 整合後重跑：**8 files、83 tests 通過**；包含 contract／圖片／pipeline／SDK／evaluation／Client／PWA／真正 Next HTTP integration |
 | npm run test:integration | 獨立 **11 tests 通過**；亦包含在 npm test |
 | npm run build | 通過；`/` 靜態，`/analyze` dynamic Node route；未用 static export |
 | npx --no-install playwright install chromium | 已下載 Chromium 151 與配套；實際以本機 CLI path 執行 |
-| npm run test:e2e | **1 passed**，production Next runtime＋最小 shell＋實際 /analyze mock 503／405／no-store；正常退出 |
-| npm run verify:bundle | 36 browser-deliverable files；0 server markers；prompt 與 sharp 均包含在 route trace |
+| npm run test:e2e | A 整合後重跑：**10 passed**；7 項 Demo/UI/PWA＋3 項 controlled Remote error/cancel flow |
+| npm run verify:bundle | A 整合後重跑：33 browser-deliverable files；0 server markers；prompt 與 sharp 均包含在 route trace |
 | npm run eval:prepare | 30 自製去識別化 PNG，20 development／10 holdout；來源、family、候選期望、人工欄位與 split 已記錄 |
 | npm run eval:ai | dry-run：20/20 development 圖片完整解碼；paidCalls=0 |
 | npm run eval:ai -- --split holdout | dry-run：10/10 圖片完整解碼；paidCalls=0 |
@@ -69,26 +69,33 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 
 | 使用者完成條件 | 狀態 |
 | --- | --- |
-| 1 可重現安裝/typecheck/lint/test/build | 本機通過；Linux CI workflow 已備妥但未跑遠端 |
+| 1 可重現安裝/typecheck/lint/test/build | 本機通過；PR #3 Backend check 成功 |
 | 2 POST /analyze contract | 本機實作與 HTTP stub integration 通過 |
 | 3 schema/image/normalize/timeout/cancel/calls | 本機測試通過 |
 | 4 真實 Provider 圖片紀錄與品質評估 | **未完成**：0 真實呼叫，人工標註 pending |
-| 5 Preview Backend 驗證 | **未完成**：無 URL／可用專案授權設定 |
+| 5 Preview Backend 驗證 | **部分完成**：Vercel 顯示 deployment Ready 且有 URL；本執行環境連線逾時，尚未完成 Backend smoke／Remote 設定 |
 | 6 secret/log/no-store/access/cost 證據 | 本機前三者通過；**外部存取／成本控制未完成** |
-| 7 A shared schema/fixtures/endpoint 交接 | 文件完成，A 正式整合仍由 A 執行 |
+| 7 A shared schema/fixtures/endpoint 交接 | 完成；A 已引用 shared schema／fixtures 與 `/analyze`，A+B 自動化通過 |
 | 8 文件狀態／待決／限制同步 | 已同步八份主要文件與新增交接／評估紀錄 |
 
 ## 下一個必要輸入
 
 1. 確認採用建議 OpenAI snapshot，將 `AI_API_KEY` 安全設定於未提交 `.env.local`（或 Preview server env）；不要貼入聊天。另明確授權美元總額與最多呼叫次數。
 2. 產品／覆核者完成候選 manifest 的實際人工標註（annotator/reviewer/approved），收斂合理 score/category，或提供已授權、已標註的替代資料集。B 不冒充人類標註。
-3. 提供已授權的 Vercel project/team 與登入／連結，確認 Preview 存取保護與實際支出停止措施，再建立受控 Preview、實跑合法圖片與平台邊界／logs／usage，保存 URL 與版本。
+3. 現有 Vercel Preview 已由 Git 整合建立；仍需在 Preview scope 安全設定 Remote env，確認存取保護與實際支出停止措施，再實跑合法圖片與平台邊界／logs／usage。若 B 執行環境持續無法連線，改由可連線的人工／CI 執行 smoke 並保存結果。
 
-首次本機驗收時的決策：**不公開 Remote、不提升 Production、Goal 未完成**。當時尚未執行真實 AI、遠端 CI、Preview/Production、外部存取／限流／支出控制、rollback、A 手機/PWA gates。此節與 JSON 證據記錄該次本機驗收狀態；後續 GitHub 交接與 CI 狀態以交接分支及 PR 為準。
+首次本機驗收時的決策：**不公開 Remote、不提升 Production、Goal 未完成**。目前遠端 CI 與 Preview build 已成功，但尚未執行真實 AI、Preview Remote smoke、外部存取／限流／支出控制、Production、rollback、A 手機實機 gates。初次 JSON 保留當時證據；後續狀態以交接分支、PR 與本文件為準。
 
 ### GitHub 交接
 
-使用者後續已授權 commit／push 與 Draft PR，交接分支為 `codex/backend-handoff`，目標 repository 為 `csfishy/scamshield-ai`。交接保留既有文件修改、B 實作與舊 Blazor；A 先依 `docs/backend-handoff.md` 完成正式 React UI／手機／PWA。此交接不代表 B 的外部 AI／部署 gate 已完成，也不授權提升 Production。
+使用者後續已授權 commit／push 與 Draft PR，交接分支為 `codex/backend-handoff`，目標 repository 為 `csfishy/scamshield-ai`。A 已於 `0c39b4549e95925a3931b5607fac2c7131c07a53` 完成 React UI／PWA 自動化範圍；B 已用 `git pull --ff-only` 拉回並重跑完整本機 checks。交接保留 B 實作與舊 Blazor；此狀態不代表真實 AI／Preview Remote gate 已完成，也不授權提升 Production。
+
+### 2026-09-05 A+B 整合後驗證
+
+- Local HEAD 與 `origin/codex/backend-handoff` 均為 `0c39b4549e95925a3931b5607fac2c7131c07a53`，拉取後 working tree clean。
+- `typecheck`、`lint`、83 Vitest、11 HTTP integration、production build、10 Playwright E2E、bundle scan 全部通過。
+- Draft PR：`https://github.com/csfishy/scamshield-ai/pull/3`；Vercel bot 回報 Preview deployment Ready：`https://scamshield-ai-git-codex-backend-handoff-csfishy-1632s-projects.vercel.app`。
+- `smoke:preview` 與內建瀏覽器均在連線階段逾時；未送出圖片、未呼叫 Provider，也未將網路逾時誤記為 API failure 或 Preview 通過。
 
 ### Goal 外部阻塞稽核
 
