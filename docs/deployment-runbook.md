@@ -1,7 +1,7 @@
 # ScamShield AI 開發、遷移與部署手冊
 
 - 版本：2.0｜2026-09-04
-- 狀態：Next.js 與受保護 Preview 已部署最新 SHA；單次本機真實 AI 已人工覆核，Preview Remote 圖片與平台邊界尚未驗收
+- 狀態：Next.js 與受保護 Preview branch 已部署；單次本機真實 AI 已人工覆核，Preview Remote 圖片與平台邊界尚未驗收
 - Owner：B（初始化／部署），A（前端／PWA 更新）
 - 配套：[SDD](sdd.md)、[測試與 gate](test-plan.md)、[API v2](api-contract.md)
 
@@ -185,7 +185,7 @@ Preview 先設 mock，確認受控存取確實攔截未授权請求，再在已�
 
 不付費 smoke：`npm run smoke:preview -- --url https://YOUR-PREVIEW`，驗證 method/header/invalid-input。若需自動通過部署保護，將 `VERCEL_AUTOMATION_BYPASS_SECRET` 安全設於本機 process env，工具不列印。另用無 bypass 的請求確認保護确實攔截。
 
-有圖片 smoke 必須已具明確額度授權，使用 `--image APPROVED_IMAGE --allow-paid-call`，只發出一次合法圖片呼叫；輸出僅 status 與 URL，不列印圖片／分析內容。完整品質改用 eval:ai；4 MiB／平台 413／timeout、取消、logs、Provider usage／支出控制仍依第 5 節逐項記錄，工具成功不代替這些 gates。
+有圖片 smoke 必須已具明確額度授權，使用 `--image APPROVED_IMAGE --allow-paid-call --budget-usd APPROVED_USD --max-calls 1 --authorized-by OPERATOR`；目前 bounded reservation 要求至少 US$0.02，只發出一次合法圖片呼叫。輸出僅 status 與 URL，不列印圖片／分析內容。完整品質改用 eval:ai；4 MiB／平台 413／timeout、取消、logs、Provider usage／支出控制仍依第 5 節逐項記錄，工具成功不代替這些 gates。
 
 保留政策：adapter 設 `store:false`，不代表供應商零保存；OpenAI 的 abuse monitoring／帳號資料控制依實際方案而異，產品開放 Remote 前需確認並告知。[OpenAI data controls](https://developers.openai.com/api/docs/guides/your-data)
 

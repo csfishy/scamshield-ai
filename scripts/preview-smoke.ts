@@ -2,11 +2,24 @@ import { parseArgs } from "node:util";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseAnalysisResponse } from "../lib/contracts/analysis";
+import {
+  applicationTextBytes,
+  createEvaluationReservation,
+} from "../lib/evaluation/budget";
+import { MAX_OUTPUT_TOKENS, MODEL } from "../lib/server/config";
+import {
+  buildAnalysisInputText,
+  loadPrompt,
+  outputJsonSchema,
+} from "../lib/server/ai/providers/openai";
 const { values } = parseArgs({
   options: {
     url: { type: "string" },
     image: { type: "string" },
     "allow-paid-call": { type: "boolean", default: false },
+    "budget-usd": { type: "string" },
+    "max-calls": { type: "string" },
+    "authorized-by": { type: "string" },
   },
 });
 if (!values.url) throw new Error("--url is required");
@@ -46,9 +59,27 @@ if (invalid.status !== 400)
 parseAnalysisResponse(400, await invalid.json());
 entries.push({ method: "POST invalid", status: 400 });
 if (values.image) {
-  if (!values["allow-paid-call"])
+  const budget = Number(values["budget-usd"]),
+    maxCalls = Number(values["max-calls"]),
+    reservation = createEvaluationReservation({
+      model: MODEL,
+      applicationTextBytes: applicationTextBytes([
+        await loadPrompt(),
+        JSON.stringify(outputJsonSchema),
+        buildAnalysisInputText("zh-TW", "screenshot"),
+      ]),
+      outputTokensPerCall: MAX_OUTPUT_TOKENS,
+      calls: 1,
+    });
+  if (
+    !values["allow-paid-call"] ||
+    !Number.isFinite(budget) ||
+    budget < reservation.requiredBudgetUsd ||
+    maxCalls !== 1 ||
+    !values["authorized-by"]?.trim()
+  )
     throw new Error(
-      "An approved test image requires explicit --allow-paid-call plus existing budget authorization",
+      `An approved test image requires --allow-paid-call, --budget-usd of at least ${reservation.requiredBudgetUsd}, --max-calls 1, and --authorized-by`,
     );
   const bytes = await readFile(values.image),
     form = new FormData();

@@ -5,6 +5,12 @@ import {
   type EvaluationCase,
 } from "../../lib/evaluation/schema";
 import { normal } from "../../fixtures/demo";
+import {
+  APPLICATION_TEXT_BYTE_LIMIT,
+  applicationTextBytes,
+  createEvaluationReservation,
+  IMAGE_INPUT_TOKEN_RESERVATION,
+} from "../../lib/evaluation/budget";
 const sample: EvaluationCase = {
   caseId: "normal-test",
   image: "images/a.png",
@@ -79,4 +85,37 @@ it("reports denominators, failures, unknown costs and human gates honestly", () 
   expect(summary.estimatedCostUsd).toBeNull();
   expect(summary.latencyMs.all).toHaveLength(2);
   expect(summary.releaseGate).toBe("NOT_PASSED");
+});
+
+it("reserves a bounded vision request and rounds the authorized total up", () => {
+  expect(IMAGE_INPUT_TOKEN_RESERVATION).toBe(9954);
+  expect(applicationTextBytes(["繁體中文", "schema"])).toBe(19);
+  const reservation = createEvaluationReservation({
+    model: "gpt-4.1-mini-2025-04-14",
+    applicationTextBytes: 8_000,
+    outputTokensPerCall: 2_400,
+    calls: 40,
+  });
+  expect(reservation.inputTokensPerCall).toBe(30_434);
+  expect(reservation.perCallUsd).toBeCloseTo(0.0160136, 10);
+  expect(reservation.requiredBudgetUsd).toBe(0.65);
+});
+
+it("fails closed when the model or application text exceeds reviewed bounds", () => {
+  expect(() =>
+    createEvaluationReservation({
+      model: "different-model",
+      applicationTextBytes: 1,
+      outputTokensPerCall: 2_400,
+      calls: 1,
+    }),
+  ).toThrow(/model must be reviewed/);
+  expect(() =>
+    createEvaluationReservation({
+      model: "gpt-4.1-mini-2025-04-14",
+      applicationTextBytes: APPLICATION_TEXT_BYTE_LIMIT + 1,
+      outputTokensPerCall: 2_400,
+      calls: 1,
+    }),
+  ).toThrow(/text exceeds reviewed byte limit/);
 });

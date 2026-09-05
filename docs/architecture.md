@@ -1,7 +1,7 @@
 # ScamShield AI MVP Architecture
 
 - 版本：2.0｜2026-09-04
-- 狀態：**A+B 已整合且自動化通過；單次真實 AI smoke 已人工覆核，受保護 Preview 已部署，完整 AI／Preview Remote／實機 gate 待驗收**
+- 狀態：**A+B 已整合且自動化通過；單次真實 AI smoke 已人工覆核，受保護 Preview branch 已配置，完整 AI／Preview Remote／實機 gate 待驗收**
 - 取代舊版 Blazor＋ASP.NET Core 目標架構；現有程式仍保留 Blazor
 - 詳細設計：[SDD](sdd.md)；線上介面：[API contract v2](api-contract.md)
 

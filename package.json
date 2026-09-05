@@ -17,7 +17,7 @@
     "eval:ai": "node --conditions=react-server --import tsx scripts/evaluate.ts",
     "verify:bundle": "node scripts/check-bundle.mjs",
     "eval:prepare": "node --import tsx scripts/prepare-evaluation.ts",
-    "smoke:preview": "node --import tsx scripts/preview-smoke.ts"
+    "smoke:preview": "node --conditions=react-server --import tsx scripts/preview-smoke.ts"
   },
   "dependencies": {
     "bcp-47": "2.1.1",

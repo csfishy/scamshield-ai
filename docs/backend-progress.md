@@ -9,8 +9,8 @@
 | M1 現況、基礎、shared contract | 完成 | 根 Next.js、strict TS、精確版本／npm lock、scripts、strict public schema／enum／limits、正常／假物流／假客服 fixtures；乾淨安裝與 contract tests 通過 |
 | M2 圖片、API、stub HTTP integration | 完成 | Node POST /analyze；固定 buffer 有界 multipart、欄位／BCP47、MIME／signature／副檔名、完整 sharp decode、EXIF／metadata、pixels／APNG／MPO／再編碼檢查；真正 Next HTTP＋SDK loopback stub 11 項通過 |
 | M3 Provider、prompt、normalization | 實作與真實連線 smoke 完成 | OpenAI Responses adapter、snapshot、prompt v1、strict output＋normalize、422／429／500／503、15s/20s deadline、取消、maxRetries=0、單次呼叫；真實圖片呼叫成功。人工檢查發現字串結構尾碼後已改為 fail closed 並加回歸測試 |
-| M4 測試、真實 AI 評估 | 自動化與單案例 smoke 完成；完整品質 gate 未完成 | A 整合後 85 tests＋10 production browser E2E 通過；真實 Provider calls=1，HTTP 200、high/phishing、估算 US$0.001152，專案負責人已確認該次輸出語意可接受。其餘主資料集人工標註與 development／holdout 尚未完成 |
-| M5 Preview、部署準備、A 交接 | 受保護 Remote Preview 已部署；API live 驗收未完成 | A 已安全設定 Preview branch Remote config／secret，以最新 SHA `e29fa4a` 無 cache 重建；deployment Ready、Latest，Vercel Authentication 未授權 302、授權首頁與 GET `/analyze` 405 已驗證。合法圖片、invalid POST 完整 headers、OPTIONS、平台邊界與成本控制仍待 live 驗證；Production 保持 mock／無 key |
+| M4 測試、真實 AI 評估 | 自動化與單案例 smoke 完成；完整品質 gate 未完成 | A 整合後 87 tests＋10 production browser E2E 通過；真實 Provider calls=1，HTTP 200、high/phishing、估算 US$0.001152，專案負責人已確認該次輸出語意可接受。其餘主資料集人工標註與 development／holdout 尚未完成 |
+| M5 Preview、部署準備、A 交接 | 受保護 Remote Preview branch 已配置；API live 驗收未完成 | A 已安全設定 Preview branch Remote config／secret；SHA `e29fa4a` 的無 cache deployment Ready、Latest，Vercel Authentication 未授權 302、授權首頁與 GET `/analyze` 405 已驗證。後續 PR head 由 Git 整合持續重建並逐次檢查。合法圖片、invalid POST 完整 headers、OPTIONS、平台邊界與成本控制仍待 live 驗證；Production 保持 mock／無 key |
 
 Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Preview。A UI／手機／PWA 另行驗收。
 
@@ -38,16 +38,16 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 | npm ci | 最終乾淨安裝成功：391 packages added，392 audited，0 vulnerabilities |
 | npm run typecheck | 通過，production build 亦再次完成 TypeScript 檢查 |
 | npm run lint | 通過 |
-| npm test | A 整合及 Provider-output 修復後重跑：**8 files、85 tests 通過**；包含 contract／圖片／pipeline／SDK／evaluation／Client／PWA／真正 Next HTTP integration |
+| npm test | bounded evaluation budget 更新後重跑：**8 files、87 tests 通過**；包含 contract／圖片／pipeline／SDK／evaluation／Client／PWA／真正 Next HTTP integration |
 | npm run test:integration | 獨立 **11 tests 通過**；亦包含在 npm test |
 | npm run build | 通過；`/` 靜態，`/analyze` dynamic Node route；未用 static export |
 | npx --no-install playwright install chromium | 已下載 Chromium 151 與配套；實際以本機 CLI path 執行 |
 | npm run test:e2e | A 整合後重跑：**10 passed**；7 項 Demo/UI/PWA＋3 項 controlled Remote error/cancel flow |
 | npm run verify:bundle | A 整合後重跑：33 browser-deliverable files；0 server markers；prompt 與 sharp 均包含在 route trace |
 | npm run eval:prepare | 30 自製去識別化 PNG，20 development／10 holdout；來源、family、候選期望、人工欄位與 split 已記錄 |
-| npm run eval:ai | dry-run：20/20 development 圖片完整解碼；paidCalls=0 |
-| npm run eval:ai -- --split holdout | dry-run：10/10 圖片完整解碼；paidCalls=0 |
-| npm run eval:ai -- --split demo | dry-run：3 張×3=9 案例、3 張完整解碼；不是三輪真實 Demo |
+| npm run eval:ai | dry-run：20/20 development 圖片完整解碼；paidCalls=0；bounded budget US$0.33 |
+| npm run eval:ai -- --split holdout | dry-run：10/10 圖片完整解碼；paidCalls=0；bounded budget US$0.17 |
+| npm run eval:ai -- --split demo | dry-run：3 張×3=9 案例、3 張完整解碼；paidCalls=0；bounded budget US$0.15，不是三輪真實 Demo |
 | npm run eval:ai -- --execute | **預期 exit 1**：缺 budget/max-calls/authorized-by 即拒絕，未讀 key 或呼叫 AI |
 | git diff --check | 通過；LF/CRLF 提示是既有 Windows Git 設定，不是 whitespace error |
 
@@ -80,7 +80,7 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 
 ## 下一個必要輸入
 
-1. 單案例授權已用完；任何後續真實呼叫都需要新的明確美元額度與最多呼叫次數授權。建議完整 evaluation 上限為 39 calls／US$1.00，但尚未獲授權，也尚未執行。
+1. 單案例授權已用完；任何後續真實呼叫都需要新的明確美元額度與最多呼叫次數授權。經官方 image token 規則與固定 prompt／schema 上界重算，Preview smoke US$0.02＋development US$0.33＋holdout US$0.17＋Demo US$0.15，共最多 40 calls／US$0.67 reservation；建議授權總上限 US$1.00，但尚未獲授權，也尚未執行。
 2. 產品／覆核者完成其餘候選 manifest 的實際人工標註（annotator/reviewer/approved）；已完成的單案例語意確認不替代 development／holdout 標註。
 3. Preview Remote env、branch-specific secret 與 Protection 已完成；仍需獲授權後在已登入 session 實跑一個合法圖片，並完成 invalid POST headers、OPTIONS、平台邊界、logs、usage 與實際支出停止措施。若 B 執行環境無法取得受保護 session，改由 A 執行工具並保存去敏證據。
 
@@ -93,7 +93,7 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 ### 2026-09-05 A+B 整合後驗證
 
 - A UI 整合後 B 完成 Provider-output 防護修復；Local HEAD 與 `origin/codex/backend-handoff` 均為 `e29fa4ad9fe20e891e21dd4e15642dc53123f9d5`，working tree 在本次文件同步前 clean。
-- `typecheck`、`lint`、85 Vitest、11 HTTP integration、production build、10 Playwright E2E、bundle scan 全部通過。
+- bounded evaluation budget 更新後，`typecheck`、`lint`、87 Vitest、11 HTTP integration、production build、10 Playwright E2E、bundle scan 全部通過。
 - Draft PR：`https://github.com/csfishy/scamshield-ai/pull/3`。最新 Preview 為 `https://scamshield-f24rsyzp2-csfishy-1632s-projects.vercel.app/`，deployment `4ArokYEYXcQXsraTXrYB7tBrxuZ2`，exact SHA `e29fa4a`；Backend、Vercel 與 Preview Comments checks 均通過。
 - Preview branch 已設 Remote config 與未 reveal 的 branch-specific key；Vercel Authentication 啟用，未授權 302，已授權首頁載入與 runtime GET `/analyze` 405 通過。Production 未 redeploy／promote，保持 mock／無 key。
 - 尚未建立 automation bypass secret；因此 invalid POST 完整 headers、OPTIONS 與合法圖片仍未完成 live 驗證。本輪 Preview 配置驗證 provider calls=0、token=0、cost=US$0。

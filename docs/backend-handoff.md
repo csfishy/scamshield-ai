@@ -2,7 +2,7 @@
 
 ## 實作與驗收邊界
 
-Next.js 根專案與 B Backend 已可在本機執行。A 已在同一分支完成正式 UI／PWA 自動化範圍，A+B 整合後的 typecheck、lint、85 Vitest、11 HTTP integration、production build 與 10 Playwright E2E 均通過。真實 adapter 已完成一次獲授權圖片 smoke，專案負責人已確認該次輸出語意可接受。A 已為最新 SHA 建立受保護的 Remote Preview，但**完整 AI 品質與 Preview Remote Backend 圖片 smoke 尚未完成**。舊 `src/app/ScamShield.Web*` 保留。
+Next.js 根專案與 B Backend 已可在本機執行。A 已在同一分支完成正式 UI／PWA 自動化範圍，A+B 整合後的 typecheck、lint、87 Vitest、11 HTTP integration、production build 與 10 Playwright E2E 均通過。真實 adapter 已完成一次獲授權圖片 smoke，專案負責人已確認該次輸出語意可接受。A 已為交接分支配置受保護的 Remote Preview，但**完整 AI 品質與 Preview Remote Backend 圖片 smoke 尚未完成**。舊 `src/app/ScamShield.Web*` 保留。
 
 進度與實測紀錄：[backend-progress.md](backend-progress.md)。API public contract 維持 v2，未增減欄位或更名 endpoint。
 

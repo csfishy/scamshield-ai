@@ -19,6 +19,16 @@ import { validateImage } from "../lib/server/image-validation";
 import { createAnalyzeHandler } from "../lib/server/analyze";
 import { parseAnalysisResponse } from "../lib/contracts/analysis";
 import type { AnalysisEvent } from "../lib/server/telemetry";
+import {
+  applicationTextBytes,
+  createEvaluationReservation,
+  EVALUATION_PRICING,
+} from "../lib/evaluation/budget";
+import {
+  buildAnalysisInputText,
+  loadPrompt,
+  outputJsonSchema,
+} from "../lib/server/ai/providers/openai";
 
 const { values } = parseArgs({
   options: {
@@ -69,6 +79,23 @@ async function main() {
   const pending = selected
     .filter((c) => c.reviewStatus !== "approved")
     .map((c) => c.caseId);
+  const instructions = await loadPrompt(),
+    schemaText = JSON.stringify(outputJsonSchema),
+    requestTextBytes = Math.max(
+      ...selected.map((c) =>
+        applicationTextBytes([
+          instructions,
+          schemaText,
+          buildAnalysisInputText(c.language, "screenshot"),
+        ]),
+      ),
+    ),
+    reservation = createEvaluationReservation({
+      model: MODEL,
+      applicationTextBytes: requestTextBytes,
+      outputTokensPerCall: MAX_OUTPUT_TOKENS,
+      calls: cases.length,
+    });
   if (!values.execute) {
     console.log(
       JSON.stringify({
@@ -79,6 +106,8 @@ async function main() {
         validImages: imageBuffers.size,
         pendingHumanLabels: pending,
         paidCalls: 0,
+        reservationPerCallUsd: reservation.perCallUsd,
+        requiredBudgetUsd: reservation.requiredBudgetUsd,
       }),
     );
     return;
@@ -103,22 +132,11 @@ async function main() {
   const config = getConfig();
   if (config.mode !== "remote")
     throw new Error("Explicit remote config and key required");
-  // Conservative reservation: entire model context at uncached input price plus
-  // capped output. This is intentionally above expected screenshot cost; no
-  // tokenizer/image estimate is falsely presented as a hard account spend limit.
-  const rates = {
-    date: "2026-09-04",
-    inputPerMillionUsd: 0.4,
-    outputPerMillionUsd: 1.6,
-    model: MODEL,
-  };
-  const reservation =
-    (1047576 * rates.inputPerMillionUsd +
-      MAX_OUTPUT_TOKENS * rates.outputPerMillionUsd) /
-    1e6;
-  if (cases.length * reservation > budget)
+  if (config.model !== EVALUATION_PRICING.model)
+    throw new Error("Evaluation budget model must match remote config");
+  if (reservation.requiredBudgetUsd > budget)
     throw new Error(
-      `Conservative reservation exceeds authorized budget; need ${Math.ceil(cases.length * reservation * 100) / 100} USD for this run or select a smaller approved dataset`,
+      `Bounded reservation exceeds authorized budget; need ${reservation.requiredBudgetUsd} USD for this run or select a smaller approved dataset`,
     );
   const runId =
       new Date().toISOString().replaceAll(":", "-") +
@@ -155,8 +173,8 @@ async function main() {
     split: values.split,
     budgetUsd: budget,
     maxCalls,
-    rates,
-    reservationPerCallUsd: reservation,
+    rates: EVALUATION_PRICING,
+    reservation,
     deployUrl: null,
     timingScope:
       "local API pipeline including Provider; browser/upload/cold Vercel timing not measured",
@@ -168,6 +186,26 @@ async function main() {
     { flag: "wx" },
   );
   for (const c of cases) {
+    const accountedBefore = rows.reduce(
+      (sum, row) => sum + (row.estimatedCostUsd ?? reservation.perCallUsd),
+      0,
+    );
+    if (accountedBefore + reservation.perCallUsd > budget) {
+      await writeFile(
+        reportPath,
+        JSON.stringify(
+          {
+            ...baseReport,
+            state: "stopped_budget",
+            rows,
+            summary: summarize(selected, rows),
+          },
+          null,
+          2,
+        ),
+      );
+      break;
+    }
     const bytes = imageBuffers.get(c.caseId)!;
     const form = new FormData();
     form.set(
@@ -207,8 +245,8 @@ async function main() {
       requestId: response.headers.get("x-request-id"),
       usage,
       estimatedCostUsd: usage
-        ? (usage.inputTokens * rates.inputPerMillionUsd +
-            usage.outputTokens * rates.outputPerMillionUsd) /
+        ? (usage.inputTokens * EVALUATION_PRICING.inputPerMillionUsd +
+            usage.outputTokens * EVALUATION_PRICING.outputPerMillionUsd) /
           1e6
         : undefined,
       humanReview: "pending",
@@ -218,7 +256,19 @@ async function main() {
       JSON.stringify(
         {
           ...baseReport,
-          state: rows.length === cases.length ? "finished" : "running",
+          state:
+            rows.length === cases.length
+              ? "finished"
+              : rows.reduce(
+                    (sum, row) =>
+                      sum +
+                      (row.estimatedCostUsd ?? reservation.perCallUsd),
+                    0,
+                  ) +
+                    reservation.perCallUsd >
+                  budget
+                ? "stopped_budget"
+                : "running",
           rows,
           summary: summarize(selected, rows),
         },
@@ -234,7 +284,16 @@ async function main() {
         total: cases.length,
       }),
     );
-    if (event?.failureKind === "configuration") break;
+    if (
+      event?.failureKind === "configuration" ||
+      rows.reduce(
+        (sum, row) => sum + (row.estimatedCostUsd ?? reservation.perCallUsd),
+        0,
+      ) +
+        reservation.perCallUsd >
+        budget
+    )
+      break;
   }
   console.log(
     JSON.stringify({ report: reportPath, ...summarize(selected, rows) }),
