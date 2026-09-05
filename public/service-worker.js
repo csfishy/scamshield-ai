@@ -1,6 +1,6 @@
 /* global self, caches */
 
-const WORKER_VERSION = "next-v1";
+const WORKER_VERSION = "next-v2";
 const STATIC_CACHE = `scamshield-static-${WORKER_VERSION}`;
 const DOCUMENT_CACHE = `scamshield-document-${WORKER_VERSION}`;
 const KNOWN_APP_CACHE_PREFIXES = [
@@ -11,8 +11,10 @@ const KNOWN_APP_CACHE_PREFIXES = [
 const PRECACHE_URLS = [
   "/offline.html",
   "/manifest.webmanifest",
+  "/apple-touch-icon.png",
   "/icon-192.png",
   "/icon-512.png",
+  "/icon-maskable-512.png",
 ];
 
 self.addEventListener("install", (event) => {
