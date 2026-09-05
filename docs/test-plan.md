@@ -1,7 +1,7 @@
 # ScamShield AI 測試與驗收計畫
 
 - 版本：2.0｜2026-09-04
-- 狀態：B 本機自動測試已有證據；真實 AI、Preview、A UI／PWA 與實機尚未驗收。詳見 [B 進度](backend-progress.md)
+- 狀態：A+B 自動化與單次真實 AI smoke 已有證據；受保護 Preview 已部署，完整 AI／Preview Remote／手機與 PWA 實機尚未驗收。詳見 [B 進度](backend-progress.md)
 - Owners：B（API／AI）、A（UI／PWA）、產品（人工標註）、企劃（實機展示）
 - 規範：[API contract v2](api-contract.md)、[SDD](sdd.md)
 

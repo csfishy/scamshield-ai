@@ -1,7 +1,7 @@
 # ScamShield AI 產品計畫
 
 - 版本：2.0｜2026-09-04
-- 狀態：Next.js MVP 產品基準；B Backend 已本機實作，真實 AI／部署／正式 UI 尚未驗收，Blazor Mock 保留
+- 狀態：Next.js MVP 的 A+B 實作已整合；單次真實 AI smoke 已人工覆核，受保護 Preview 已部署；完整品質／Remote／實機 gate 尚未驗收，Blazor Mock 保留
 - 產品範圍文件；API 欄位以 [api-contract.md](api-contract.md) 為準
 
 ## 1. 問題與價值
@@ -45,8 +45,9 @@ LINE／社群聊天、物流通知、客服、付款／OTP 要求、投資與冒
 目標：Next.js＋React＋TypeScript 前端，Next.js Route Handler 後端，
 Vercel 同源部署，一個真實 Multimodal AI Provider。
 
-現有：根 Next.js 最小 shell、B Backend／shared schema／OpenAI adapter 與本機
-自動測試。尚無真實 Provider 呼叫或 Preview 證據，A 正式 UI/PWA 待完成。
+現有：根 Next.js、A 正式 UI/PWA、B Backend／shared schema／OpenAI adapter 與
+自動測試已整合；一次本機真實 Provider 圖片 smoke 已獲人工語意確認，受保護
+Preview 已部署。完整資料集、Preview Remote API 與手機／PWA 實機仍待驗收。
 舊 .NET 10 Blazor／PWA／Mock client 保留。實測與阻塞見 [B 進度](backend-progress.md)。
 
 詳細技術責任與資料流：[architecture.md](architecture.md)、[sdd.md](sdd.md)。

@@ -2,7 +2,7 @@
 
 - 文件版本：2.0
 - 日期：2026-09-04
-- 狀態：B 本機實作與自動測試已建立；真實 AI／Preview／A UI-PWA gate 未完成
+- 狀態：A+B 實作與自動測試已整合；單次真實 AI smoke 已人工覆核，受保護 Preview 已部署；完整 AI／Preview Remote／實機 gate 未完成
 - 主要 Owner：程式設計師 B（AI／Backend）；A 共同維護 Client 與共用介面
 - 適用範圍：三日 Buildmode MVP
 
@@ -10,7 +10,7 @@
 
 本文件保留目標設計。2026-09-04 B 已建立根 Next.js／Backend／單一 OpenAI
 adapter，vercel.json 已轉 Next.js；本機驗證見 [B 進度](backend-progress.md)。
-真實 AI、Vercel 部署及 A 正式 UI/PWA 尚未通過。舊 `src/app/ScamShield.Web`
+完整 AI 評估、Preview Remote API 與 A 實機 UI/PWA 尚未通過。舊 `src/app/ScamShield.Web`
 Blazor Mock 與 ContractChecks 保留，不能當 v2 驗收依據。
 
 閱讀順序：[產品](product-plan.md) → [架構](architecture.md) →
@@ -299,10 +299,10 @@ width／height、可用的 usage／estimatedCost。以有限類別記錄錯誤�
 
 ### 2026-09-04 B 實作決策補記
 
-- O-01：單一 adapter 建議並固定 OpenAI `gpt-4.1-mini-2025-04-14`，採 Responses API＋strict JSON schema、store:false、maxRetries:0、temperature:0、max_output_tokens:2400。模型支援圖片與 structured outputs；帳號存取／憑證仍待實測。[官方模型](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+- O-01：單一 adapter 固定 OpenAI `gpt-4.1-mini-2025-04-14`，採 Responses API＋strict JSON schema、store:false、maxRetries:0、temperature:0、max_output_tokens:2400。模型、帳號憑證與圖片輸入已完成一次本機真實 smoke；完整資料集與 Preview Remote 仍待驗證。[官方模型](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
 - O-03：`prompts/scam-analysis-v1.md` 已建立。Provider 內部 envelope 包含 outcome union，符合 structured outputs 的 root object 限制；不改 public 六欄 schema。[官方 Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 - O-04：Node 24.19.0／Next 16.3.4／React 19.2.8／TypeScript 6.0.3／Zod 4.5.4／sharp 0.35.4／OpenAI SDK 7.10.0／npm 12.0.2，完整鎖定見 package-lock.json。本機 build 成功；Vercel 只可鎖 Node major，Linux native binary 仍需 Preview 驗證。
-- O-05：30 張 synthetic candidates 與工具已建立，20/10 split、人工標註全部 pending；不算品質通過。
-- O-02/O-06/O-07：額度、存取／支出控制實測、保留政策確認與 Preview URL 仍未完成。
+- O-05：30 張 synthetic candidates 與工具已建立，20/10 split；單次 `high-risk-delivery-fee` 輸出已獲專案負責人語意確認，其餘人工標註仍 pending，不算完整品質通過。
+- O-02/O-07：Preview branch 已設 Remote config／secret，Vercel Authentication 已攔截未授權請求，最新 SHA Preview Ready；合法圖片、完整 contract headers、平台邊界與實際支出停止措施仍待驗證。O-06 保留政策仍待產品確認。
 - 內部圖片 guard 另檢查 APNG chunks 與 JPEG MPF NumberOfImages，防止 decoder 只讀首 frame；禁用 sharp operation cache。不改 HTTP 限制。
 - public contract 無修訂；BCP 47 使用完整 parser 接受 private-use／grandfathered，避免以 Intl 的子集靜默收窄 contract。

@@ -1,7 +1,7 @@
 # ScamShield AI MVP Architecture
 
 - 版本：2.0｜2026-09-04
-- 狀態：**B Backend 已本機實作／驗證；真實 AI、Preview 與 A UI/PWA 待驗收**
+- 狀態：**A+B 已整合且自動化通過；單次真實 AI smoke 已人工覆核，受保護 Preview 已部署，完整 AI／Preview Remote／實機 gate 待驗收**
 - 取代舊版 Blazor＋ASP.NET Core 目標架構；現有程式仍保留 Blazor
 - 詳細設計：[SDD](sdd.md)；線上介面：[API contract v2](api-contract.md)
 
@@ -9,10 +9,10 @@
 
 | 面向 | Repository 現況 | 目標 |
 | --- | --- | --- |
-| Frontend | Next.js 最小 shell；舊 Blazor 保留 | A 正式 React UI |
-| Backend | 已實作 /analyze、圖片完整驗證 | Vercel Node.js runtime 待實測 |
-| AI | 單一 OpenAI adapter 已實作；SDK stub 通過 | 真實 Provider 評估待完成 |
-| Deployment | Next.js 設定、本機 build 通過 | Preview 未部署 |
+| Frontend | A 正式 React UI／PWA 已整合且自動化通過；舊 Blazor 保留 | iOS／Android 與舊 PWA 遷移待實測 |
+| Backend | 已實作 /analyze、圖片完整驗證 | Preview 合法／非法 POST runtime 待完整實測 |
+| AI | OpenAI adapter 已完成一次真實圖片 smoke 並獲人工語意確認 | development／holdout 與 Preview Remote 待完成 |
+| Deployment | 受 Vercel Authentication 保護的 Preview 已部署最新 SHA | Remote 圖片 smoke、平台邊界與 Production gate 待完成 |
 | Contract | 現有 C# client 依 v1、10 MiB | v2、4 MiB＋422＋明確資源上限 |
 | Storage | 無 DB／會員／queue | 維持無 DB／會員／queue |
 | PWA | Blazor manifest／worker | 保留安裝與離線備援能力，重新設計 cache／更新 |

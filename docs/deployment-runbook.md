@@ -1,7 +1,7 @@
 # ScamShield AI 開發、遷移與部署手冊
 
 - 版本：2.0｜2026-09-04
-- 狀態：Next.js 根專案與本機驗證已建立；Vercel Preview 未部署、真實 AI 與平台控制尚未驗收
+- 狀態：Next.js 與受保護 Preview 已部署最新 SHA；單次本機真實 AI 已人工覆核，Preview Remote 圖片與平台邊界尚未驗收
 - Owner：B（初始化／部署），A（前端／PWA 更新）
 - 配套：[SDD](sdd.md)、[測試與 gate](test-plan.md)、[API v2](api-contract.md)
 
@@ -175,7 +175,7 @@ API keys 的輪替或撤銷需由已授權操作者執行並記錄。
 
 ## 9. B 本次部署準備與外部阻塞（2026-09-04）
 
-目前沒有 `.vercel/project.json`、Vercel CLI 登入憑證或 VERCEL_TOKEN，未取得 project/team 與保護規則；沒有 Preview URL。未修改正式網域、未提升 Production、未建立付費服務。
+本節保留 2026-09-04 的初始阻塞快照；目前狀態已由第 10 節取代。當時沒有 `.vercel/project.json`、Vercel CLI 登入憑證或 VERCEL_TOKEN，未取得 project/team 與保護規則，也沒有 Preview URL；未修改正式網域、未提升 Production、未建立付費服務。
 
 必要輸入：已授權 Vercel project/team、Preview 的存取保護、專用測試 key、美元總額與最多呼叫次數。CLI 可由操作者登入後 `vercel link` 選**既有**專案，核對 root/framework/install/build/output/Node 24.x，再 `vercel deploy` 建立 Preview；不得加 `--prod`。若使用已登入 Dashboard，先確認專案 identity 與保護設定，不靠 URL 猜權限。
 
@@ -188,3 +188,13 @@ Preview 先設 mock，確認受控存取確實攔截未授权請求，再在已�
 有圖片 smoke 必須已具明確額度授權，使用 `--image APPROVED_IMAGE --allow-paid-call`，只發出一次合法圖片呼叫；輸出僅 status 與 URL，不列印圖片／分析內容。完整品質改用 eval:ai；4 MiB／平台 413／timeout、取消、logs、Provider usage／支出控制仍依第 5 節逐項記錄，工具成功不代替這些 gates。
 
 保留政策：adapter 設 `store:false`，不代表供應商零保存；OpenAI 的 abuse monitoring／帳號資料控制依實際方案而異，產品開放 Remote 前需確認並告知。[OpenAI data controls](https://developers.openai.com/api/docs/guides/your-data)
+
+## 10. Preview 實際配置紀錄（2026-09-05）
+
+- Preview URL：`https://scamshield-f24rsyzp2-csfishy-1632s-projects.vercel.app/`；deployment `4ArokYEYXcQXsraTXrYB7tBrxuZ2`。
+- Branch／SHA：`codex/backend-handoff`／`e29fa4ad9fe20e891e21dd4e15642dc53123f9d5`；狀態 Ready、Latest、Preview。
+- Preview：`ANALYSIS_MODE=remote`、OpenAI snapshot 與 timeout／prompt config 已設定；`AI_API_KEY` branch-specific secret present，未 reveal。
+- Production：`ANALYSIS_MODE=mock`，無 `AI_API_KEY`；未 redeploy、promote 或更動正式網域。
+- Vercel Authentication／Require Log In 已啟用；無登入請求得到 302。GitHub Backend、Vercel、Preview Comments checks 均通過。
+- 已登入 session 載入首頁成功；runtime log 證實 `GET /analyze` 回 405。沒有新增付費呼叫。
+- 仍待：受保護 session 下的合法圖片 Remote smoke、invalid POST 完整 headers、app-level OPTIONS、平台 413／timeout、usage／成本控制與手機實機驗收。

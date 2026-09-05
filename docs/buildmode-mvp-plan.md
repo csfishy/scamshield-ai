@@ -1,7 +1,7 @@
 # Buildmode MVP 三日開發與分工計畫
 
 - 版本：2.0｜2026-09-04
-- 狀態：B 本機實作與自動測試已推進；真實 AI、Preview 與 A UI/PWA gate 未完成。見 [B 進度](backend-progress.md)
+- 狀態：A+B 實作與自動測試已整合；單次真實 AI smoke 已人工覆核，受保護 Preview 已部署；完整 AI／Preview Remote／實機 gate 未完成。見 [B 進度](backend-progress.md)
 - 團隊：A（UI）、B（AI／Backend）、產品行銷、企劃包裝
 - 設計：[SDD](sdd.md)｜介面：[API v2](api-contract.md)｜驗收：[test-plan.md](test-plan.md)
 

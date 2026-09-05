@@ -9,8 +9,8 @@
 | M1 現況、基礎、shared contract | 完成 | 根 Next.js、strict TS、精確版本／npm lock、scripts、strict public schema／enum／limits、正常／假物流／假客服 fixtures；乾淨安裝與 contract tests 通過 |
 | M2 圖片、API、stub HTTP integration | 完成 | Node POST /analyze；固定 buffer 有界 multipart、欄位／BCP47、MIME／signature／副檔名、完整 sharp decode、EXIF／metadata、pixels／APNG／MPO／再編碼檢查；真正 Next HTTP＋SDK loopback stub 11 項通過 |
 | M3 Provider、prompt、normalization | 實作與真實連線 smoke 完成 | OpenAI Responses adapter、snapshot、prompt v1、strict output＋normalize、422／429／500／503、15s/20s deadline、取消、maxRetries=0、單次呼叫；真實圖片呼叫成功。人工檢查發現字串結構尾碼後已改為 fail closed 並加回歸測試 |
-| M4 測試、真實 AI 評估 | 自動化與單案例 smoke 完成；完整品質 gate 未完成 | A 整合後 85 tests＋10 production browser E2E 通過；真實 Provider calls=1，HTTP 200、high/phishing、估算 US$0.001152。30 張主資料集人工標註仍 pending；development／holdout 尚未執行 |
-| M5 Preview、部署準備、A 交接 | Public repo 的 Preview build 完成；Remote 驗收未完成 | Repository 已改為 Public；A commit `38b4cbb` 的 Backend 與 Vercel checks 成功／Ready，Preview URL 已更新。B 執行環境連線 URL 仍逾時，因此尚無 Preview `/analyze` smoke、Remote env、保護與成本控制證據 |
+| M4 測試、真實 AI 評估 | 自動化與單案例 smoke 完成；完整品質 gate 未完成 | A 整合後 85 tests＋10 production browser E2E 通過；真實 Provider calls=1，HTTP 200、high/phishing、估算 US$0.001152，專案負責人已確認該次輸出語意可接受。其餘主資料集人工標註與 development／holdout 尚未完成 |
+| M5 Preview、部署準備、A 交接 | 受保護 Remote Preview 已部署；API live 驗收未完成 | A 已安全設定 Preview branch Remote config／secret，以最新 SHA `e29fa4a` 無 cache 重建；deployment Ready、Latest，Vercel Authentication 未授權 302、授權首頁與 GET `/analyze` 405 已驗證。合法圖片、invalid POST 完整 headers、OPTIONS、平台邊界與成本控制仍待 live 驗證；Production 保持 mock／無 key |
 
 Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Preview。A UI／手機／PWA 另行驗收。
 
@@ -23,7 +23,7 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 - `lib/server/config.ts`、`deadline.ts`、`errors.ts`、`telemetry.ts`：fail-closed 設定、取消與 timeout、固定安全訊息、runtime log allowlist。
 - `tests/unit/*`、`tests/integration/http.test.ts`、`tests/e2e/backend-shell.spec.ts`：不付費驗證。HTTP stub 只在 `.tools/http-app` 測試副本的 route wiring 注入，不進正式 endpoint。
 - `lib/evaluation/schema.ts`、`scripts/evaluate.ts`、`prepare-evaluation.ts`、`tests/evaluation/*`：完整評估工具與待人工標註候選；真實單案例結果見 `docs/ai-smoke-2026-09-05.md`。
-- `scripts/preview-smoke.ts`、`check-bundle.mjs`、`.github/workflows/backend.yml`：部署準備，尚未在遠端 CI／Vercel 執行。
+- `scripts/preview-smoke.ts`、`check-bundle.mjs`、`.github/workflows/backend.yml`：部署準備；GitHub Backend 與 Vercel checks 已在最新 SHA 通過，受保護 Preview 的完整 API smoke 尚待執行。
 - [A 交接](backend-handoff.md)、[評估操作](../tests/evaluation/README.md)、[部署手冊](deployment-runbook.md)：引用介面、模式、錯誤、人工與外部 gates。
 
 ## 實际命令與結果
@@ -72,19 +72,19 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 | 1 可重現安裝/typecheck/lint/test/build | 本機通過；PR #3 Backend check 成功 |
 | 2 POST /analyze contract | 本機實作與 HTTP stub integration 通過 |
 | 3 schema/image/normalize/timeout/cancel/calls | 本機測試通過 |
-| 4 真實 Provider 圖片紀錄與品質評估 | **部分完成**：1 次真實圖片呼叫成功；完整人工標註與 development／holdout 品質評估未完成 |
-| 5 Preview Backend 驗證 | **部分完成**：Public repo 的 deployment Ready 且有 URL；本執行環境連線 URL 逾時，尚未完成 Backend smoke／Remote 設定 |
-| 6 secret/log/no-store/access/cost 證據 | 本機前三者通過；**外部存取／成本控制未完成** |
+| 4 真實 Provider 圖片紀錄與品質評估 | **部分完成**：1 次真實圖片呼叫成功且獲人工語意確認；其餘人工標註與 development／holdout 品質評估未完成 |
+| 5 Preview Backend 驗證 | **部分完成**：最新 SHA 的 branch-specific Remote config／secret、Ready deployment、Authentication 與 GET 405 已驗證；合法圖片與完整 HTTP contract live smoke 未完成 |
+| 6 secret/log/no-store/access/cost 證據 | 本機 secret/log/no-store 通過；Preview key scope／Protection／sanitized logs 已確認；**實際支出停止措施與 Remote usage 尚未驗證** |
 | 7 A shared schema/fixtures/endpoint 交接 | 完成；A 已引用 shared schema／fixtures 與 `/analyze`，A+B 自動化通過 |
 | 8 文件狀態／待決／限制同步 | 已同步八份主要文件與新增交接／評估紀錄 |
 
 ## 下一個必要輸入
 
-1. OpenAI snapshot 與本機 `AI_API_KEY` 已設定，單案例授權已用完；任何後續真實呼叫都需要新的明確美元額度與最多呼叫次數授權。
-2. 產品／覆核者完成其餘候選 manifest 的實際人工標註（annotator/reviewer/approved），並覆核單案例實際輸出，收斂合理 score/category；B 不冒充人類標註。
-3. 現有 Vercel Preview 已由 Git 整合建立；仍需在 Preview scope 安全設定 Remote env，確認存取保護與實際支出停止措施，再實跑合法圖片與平台邊界／logs／usage。若 B 執行環境持續無法連線，改由可連線的人工／CI 執行 smoke 並保存結果。
+1. 單案例授權已用完；任何後續真實呼叫都需要新的明確美元額度與最多呼叫次數授權。建議完整 evaluation 上限為 39 calls／US$1.00，但尚未獲授權，也尚未執行。
+2. 產品／覆核者完成其餘候選 manifest 的實際人工標註（annotator/reviewer/approved）；已完成的單案例語意確認不替代 development／holdout 標註。
+3. Preview Remote env、branch-specific secret 與 Protection 已完成；仍需獲授權後在已登入 session 實跑一個合法圖片，並完成 invalid POST headers、OPTIONS、平台邊界、logs、usage 與實際支出停止措施。若 B 執行環境無法取得受保護 session，改由 A 執行工具並保存去敏證據。
 
-首次本機驗收時的決策：**不公開 Remote、不提升 Production、Goal 未完成**。目前遠端 CI 與 Preview build 已成功，但尚未執行真實 AI、Preview Remote smoke、外部存取／限流／支出控制、Production、rollback、A 手機實機 gates。初次 JSON 保留當時證據；後續狀態以交接分支、PR 與本文件為準。
+目前決策：**受保護 Preview 可維持 Remote；不提升 Production、Goal 未完成**。Production 明確保持 mock 且無 key。尚未完成 Preview Remote 圖片、完整品質評估、實際支出停止措施、Production／rollback 與 A 手機實機 gates。初次 JSON 保留當時證據；後續狀態以交接分支、PR 與本文件為準。
 
 ### GitHub 交接
 
@@ -92,11 +92,12 @@ Goal 保留完整 B 驗收条件。Stub／本機 build 不替代真實 AI／Prev
 
 ### 2026-09-05 A+B 整合後驗證
 
-- Local HEAD 與 `origin/codex/backend-handoff` 均為 `0c39b4549e95925a3931b5607fac2c7131c07a53`，拉取後 working tree clean。
+- A UI 整合後 B 完成 Provider-output 防護修復；Local HEAD 與 `origin/codex/backend-handoff` 均為 `e29fa4ad9fe20e891e21dd4e15642dc53123f9d5`，working tree 在本次文件同步前 clean。
 - `typecheck`、`lint`、85 Vitest、11 HTTP integration、production build、10 Playwright E2E、bundle scan 全部通過。
-- Draft PR：`https://github.com/csfishy/scamshield-ai/pull/3`。Repository 改為 Public 後，A commit `38b4cbb` 的 Vercel deployment Ready：`https://scamshield-ai-git-codex-backend-handoff-csfishy-1632s-projects.vercel.app`；Backend、Vercel 與 Preview Comments checks 均通過。
-- `smoke:preview` 與內建瀏覽器均在連線階段逾時；未送出圖片、未呼叫 Provider，也未將網路逾時誤記為 API failure 或 Preview 通過。
+- Draft PR：`https://github.com/csfishy/scamshield-ai/pull/3`。最新 Preview 為 `https://scamshield-f24rsyzp2-csfishy-1632s-projects.vercel.app/`，deployment `4ArokYEYXcQXsraTXrYB7tBrxuZ2`，exact SHA `e29fa4a`；Backend、Vercel 與 Preview Comments checks 均通過。
+- Preview branch 已設 Remote config 與未 reveal 的 branch-specific key；Vercel Authentication 啟用，未授權 302，已授權首頁載入與 runtime GET `/analyze` 405 通過。Production 未 redeploy／promote，保持 mock／無 key。
+- 尚未建立 automation bypass secret；因此 invalid POST 完整 headers、OPTIONS 與合法圖片仍未完成 live 驗證。本輪 Preview 配置驗證 provider calls=0、token=0、cost=US$0。
 
 ### Goal 外部阻塞稽核
 
-同一組外部條件已連續三個 Goal 回合確認缺失：沒有 `.env.local`／可用 AI key、沒有明確費用與呼叫次數授權、30 張人工標註全部 pending、沒有 `.vercel/project.json`／部署憑證。前一續作回合沒有實作進展，也沒有已確認執行中的外部工作可等待。本機可獨立完成的交付已完成，因此 Goal 標記 **blocked，非 complete**，完整目標保留；取得上述輸入後繼續真實 AI 與 Preview 驗收。
+先前因 key、額度與 Vercel 存取缺失而記錄的 blocked 狀態已在使用者恢復額度後續作；本機真實 smoke 與 A 的 Preview 配置已有新增證據。現在剩餘外部輸入是後續付費呼叫的明確授權、其餘人工標註，以及 A／專案負責人的手機實機與受保護 Preview session 驗證。完整 Goal 仍未完成。
