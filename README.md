@@ -145,6 +145,6 @@ Vercel 以 `vercel.json` 設定 Next.js、`npm ci` 與 `npm run build`。Reposit
 
 ## License
 
-本專案採用自訂的 [ScamShield Source Code License](LICENSE)，屬 source-available、
-非開源授權。允許 Hackathon 評審／展示，以及個人非商業的閱讀、研究與本機測試；
-未經著作權人書面同意，不得商業使用、重新散布或散布修改版本與衍生作品。
+本專案採用 [Apache License 2.0](LICENSE) 開源授權。
+你可以依 Apache License 2.0 的條款使用、修改及散布本專案，
+詳細授權條款請參閱 [LICENSE](LICENSE)。
