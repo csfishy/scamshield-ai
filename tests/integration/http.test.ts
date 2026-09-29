@@ -64,19 +64,21 @@ beforeAll(async () => {
         ? { status: "insufficient_evidence", reason: "unreadable" }
         : scenario === "unknown"
           ? { status: "analyzed", ...providerAnalysis, category: "unknown" }
-          : scenario === "text_debris"
-            ? {
-                status: "analyzed",
-                ...providerAnalysis,
-                signals: [
-                  {
-                    type: "other",
-                    severity: "low",
-                    reason: "要求提供驗證碼。}],",
-                  },
-                ],
-              }
-          : { status: "analyzed", ...providerAnalysis };
+          : scenario === "outcome_mismatch"
+            ? { status: "analyzed", ...providerAnalysis, riskScore: "85" }
+            : scenario === "text_debris"
+              ? {
+                  status: "analyzed",
+                  ...providerAnalysis,
+                  signals: [
+                    {
+                      type: "other",
+                      severity: "low",
+                      reason: "要求提供驗證碼。}],",
+                    },
+                  ],
+                }
+              : { status: "analyzed", ...providerAnalysis };
     const content =
       scenario === "refusal"
         ? [{ type: "refusal", refusal: "private-refusal" }]
@@ -230,6 +232,18 @@ async function imagePart(format = "png"): Promise<Part> {
     data: format === "png" ? await png() : await jpeg(),
   };
 }
+async function loggedEvent(
+  requestId: string,
+): Promise<Record<string, unknown>> {
+  for (let i = 0; i < 40; i++) {
+    const line = serverLog
+      .split(/\r?\n/u)
+      .find((entry) => entry.includes(`"requestId":"${requestId}"`));
+    if (line) return JSON.parse(line.slice(line.indexOf('{"requestId"')));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error("Expected safe telemetry event was not emitted");
+}
 describe("real Next.js + SDK HTTP integration", () => {
   it.each([
     ["client_rate_limited", 429],
@@ -354,6 +368,48 @@ describe("real Next.js + SDK HTTP integration", () => {
       scenario = "normal";
     }
   });
+  it.each([
+    ["malformed", 500, "output_json_parse", undefined],
+    ["text_debris", 500, "structural_debris", "signal_reason"],
+    ["outcome_mismatch", 500, "provider_outcome", undefined],
+    ["normal", 200, undefined, undefined],
+  ] as const)(
+    "HTTP scenario %s exposes only public contract and emits safe stage",
+    async (name, status, stage, field) => {
+      scenario = name;
+      const before = calls;
+      try {
+        const response = await post([await imagePart()]);
+        expect(response.status).toBe(status);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        const requestId = response.headers.get("x-request-id");
+        expect(requestId).toMatch(/^[0-9a-f-]{36}$/u);
+        const body = await response.text();
+        parseAnalysisResponse(status, JSON.parse(body));
+        if (status === 500)
+          expect(JSON.parse(body)).toMatchObject({
+            error: { code: "analysis_failed" },
+          });
+        expect(body).not.toMatch(
+          /schemaFailure|要求提供驗證碼。\}\],|bad json|stub-only/u,
+        );
+        expect(calls - before).toBe(1);
+        const event = await loggedEvent(requestId!);
+        expect(event).toMatchObject({
+          requestId,
+          status,
+          providerEntered: true,
+        });
+        expect(event.schemaFailureStage).toBe(stage);
+        expect(event.schemaFailureField).toBe(field);
+        expect(JSON.stringify(event)).not.toMatch(
+          /要求提供驗證碼。\}\],|bad json|stub-only/u,
+        );
+      } finally {
+        scenario = "normal";
+      }
+    },
+  );
   it("application telemetry does not contain private provider output", () => {
     expect(serverLog).not.toMatch(
       /private-provider-error|private-refusal|目前可讀內容|stub-only/,

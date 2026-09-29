@@ -164,15 +164,25 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
         .outcome,
     ).toEqual({ status: "insufficient_evidence", reason: "refusal" });
   });
-  it.each(["not json", "{}", '{"outcome":{},"secret":1}'])(
-    "rejects malformed output %s",
-    async (text) => {
+  it.each([
+    ["not json", "output_json_parse"],
+    ["{}", "envelope"],
+    ['{"outcome":{},"secret":1}', "envelope"],
+    ["[]", "envelope"],
+    ["", "response_incomplete"],
+  ] as const)(
+    "classifies schema output %s as %s without retry",
+    async (text, stage) => {
       const transport = vi.fn<typeof fetch>(async () =>
         Response.json(result(text)),
       );
       await expect(
         createOpenAIProvider(config, transport).analyze(image, context()),
-      ).rejects.toMatchObject({ code: "analysis_failed" });
+      ).rejects.toMatchObject({
+        code: "analysis_failed",
+        kind: "schema",
+        schemaFailureStage: stage,
+      });
       expect(transport).toHaveBeenCalledOnce();
     },
   );
@@ -182,7 +192,11 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
     );
     await expect(
       createOpenAIProvider(config, transport).analyze(image, context()),
-    ).rejects.toMatchObject({ code: "analysis_failed" });
+    ).rejects.toMatchObject({
+      code: "analysis_failed",
+      kind: "schema",
+      schemaFailureStage: "response_incomplete",
+    });
     const controller = new AbortController();
     controller.abort();
     await expect(

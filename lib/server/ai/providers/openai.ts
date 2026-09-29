@@ -9,7 +9,7 @@ import {
   RISK_LEVELS,
 } from "../../../contracts/analysis";
 import { MAX_OUTPUT_TOKENS, type ServerConfig } from "../../config";
-import { AppError } from "../../errors";
+import { AppError, schemaFailure } from "../../errors";
 import { checkAbort } from "../../deadline";
 import type { ScamAIProvider, ProviderResult } from "../provider";
 
@@ -145,16 +145,16 @@ export function createOpenAIProvider(
             usage,
           };
         if (response.status !== "completed" || !response.output_text)
-          throw new AppError("analysis_failed", "schema");
+          throw schemaFailure("response_incomplete");
         let decoded: unknown;
         try {
           decoded = JSON.parse(response.output_text);
         } catch {
-          throw new AppError("analysis_failed", "schema");
+          throw schemaFailure("output_json_parse");
         }
         const parsed = envelope.safeParse(decoded);
         if (!parsed.success || !Object.hasOwn(parsed.data, "outcome"))
-          throw new AppError("analysis_failed", "schema");
+          throw schemaFailure("envelope");
         return { outcome: parsed.data.outcome, usage };
       } catch (error) {
         if (error instanceof AppError) throw error;
@@ -172,7 +172,7 @@ export function createOpenAIProvider(
         }
         if (context.signal.aborted)
           throw new AppError("provider_unavailable", "cancelled");
-        throw new AppError("analysis_failed", "schema");
+        throw schemaFailure("provider_adapter");
       }
     },
   };

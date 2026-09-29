@@ -145,6 +145,10 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
       event.status = response.status;
       event.errorCode = safe.code;
       event.failureKind = safe.kind;
+      if (safe.kind === "schema") {
+        event.schemaFailureStage = safe.schemaFailureStage;
+        event.schemaFailureField = safe.schemaFailureField;
+      }
       if (
         [
           "client_rate_limited",

@@ -5,7 +5,7 @@ import {
   type AnalysisResult,
 } from "../../contracts/analysis";
 import { providerOutcomeSchema } from "./provider";
-import { AppError } from "../errors";
+import { AppError, schemaFailure, type SchemaFailureField } from "../errors";
 
 function hasStructuralDebris(value: string): boolean {
   // Two or more closing JSON delimiters at the end are output debris, even
@@ -13,15 +13,19 @@ function hasStructuralDebris(value: string): boolean {
   return /[}\]](?:,?[}\]])+,?$/u.test(value);
 }
 
-function normalizeProviderText(value: string): string {
+function normalizeProviderText(
+  value: string,
+  field: SchemaFailureField,
+): string {
   const text = value.trim();
-  if (hasStructuralDebris(text)) throw new AppError("analysis_failed", "schema");
+  if (hasStructuralDebris(text))
+    throw schemaFailure("structural_debris", field);
   return text;
 }
 
 export function normalizeOutcome(raw: unknown): AnalysisResult {
   const parsed = providerOutcomeSchema.safeParse(raw);
-  if (!parsed.success) throw new AppError("analysis_failed", "schema");
+  if (!parsed.success) throw schemaFailure("provider_outcome");
   const value = parsed.data;
   if (value.status === "insufficient_evidence")
     throw new AppError("insufficient_evidence", "refusal");
@@ -29,14 +33,16 @@ export function normalizeOutcome(raw: unknown): AnalysisResult {
     riskScore: value.riskScore,
     riskLevel: riskLevelForScore(value.riskScore),
     category: value.category,
-    summary: normalizeProviderText(value.summary),
+    summary: normalizeProviderText(value.summary, "summary"),
     signals: value.signals.map((s) => ({
       type: s.type,
       severity: s.severity,
-      reason: normalizeProviderText(s.reason),
+      reason: normalizeProviderText(s.reason, "signal_reason"),
     })),
-    recommendations: value.recommendations.map(normalizeProviderText),
+    recommendations: value.recommendations.map((text) =>
+      normalizeProviderText(text, "recommendation"),
+    ),
   });
-  if (!result.success) throw new AppError("analysis_failed", "schema");
+  if (!result.success) throw schemaFailure("public_contract");
   return result.data;
 }

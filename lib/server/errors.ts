@@ -33,14 +33,38 @@ export type FailureKind =
   | "schema"
   | "refusal"
   | "unknown";
+export const SCHEMA_FAILURE_STAGES = [
+  "response_incomplete",
+  "output_json_parse",
+  "envelope",
+  "provider_outcome",
+  "structural_debris",
+  "public_contract",
+  "provider_adapter",
+] as const;
+export type SchemaFailureStage = (typeof SCHEMA_FAILURE_STAGES)[number];
+export const SCHEMA_FAILURE_FIELDS = [
+  "summary",
+  "signal_reason",
+  "recommendation",
+] as const;
+export type SchemaFailureField = (typeof SCHEMA_FAILURE_FIELDS)[number];
 export class AppError extends Error {
   constructor(
     public readonly code: ErrorCode,
     public readonly kind: FailureKind = "input",
     public readonly retryAfter?: string,
+    public readonly schemaFailureStage?: SchemaFailureStage,
+    public readonly schemaFailureField?: SchemaFailureField,
   ) {
     super(code);
   }
+}
+export function schemaFailure(
+  stage: SchemaFailureStage,
+  field?: SchemaFailureField,
+): AppError {
+  return new AppError("analysis_failed", "schema", undefined, stage, field);
 }
 export function errorResponse(
   error: AppError,

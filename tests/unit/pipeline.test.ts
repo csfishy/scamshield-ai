@@ -10,7 +10,7 @@ import { normalizeOutcome } from "../../lib/server/ai/normalize";
 import { providerOutcomeSchema } from "../../lib/server/ai/provider";
 import { analysisSchema } from "../../lib/contracts/analysis";
 import { AppError } from "../../lib/server/errors";
-import { emitTelemetry } from "../../lib/server/telemetry";
+import { emitTelemetry, type AnalysisEvent } from "../../lib/server/telemetry";
 import { normal } from "../../fixtures/demo";
 import { png, request } from "../helpers/images";
 import type { AnalysisContext } from "../../lib/server/ai/provider";
@@ -32,13 +32,15 @@ const outcome = {
   signals: normal.signals,
   recommendations: normal.recommendations,
 };
-function expectSchemaFailure(raw: unknown) {
+function expectSchemaFailure(raw: unknown, stage?: string, field?: string) {
   try {
     normalizeOutcome(raw);
     throw new Error("Expected structural debris to be rejected");
   } catch (error) {
     expect(error).toBeInstanceOf(AppError);
     expect(error).toMatchObject({ code: "analysis_failed", kind: "schema" });
+    if (stage) expect(error).toMatchObject({ schemaFailureStage: stage });
+    if (field) expect(error).toMatchObject({ schemaFailureField: field });
   }
 }
 describe("normalization and errors", () => {
@@ -55,29 +57,67 @@ describe("normalization and errors", () => {
   it.each(["}],", "}]", "]},", "},]"])(
     "rejects structural debris in a summary: %s",
     (tail) => {
-      expectSchemaFailure({ ...outcome, summary: `這是一則可疑訊息。${tail}` });
+      expectSchemaFailure(
+        { ...outcome, summary: `這是一則可疑訊息。${tail}` },
+        "structural_debris",
+        "summary",
+      );
     },
   );
   it.each(["]],", "}},", "}],  "])(
     "rejects other malformed tail patterns after trim: %s",
     (tail) => {
-      expectSchemaFailure({ ...outcome, summary: `這是一則可疑訊息。${tail}` });
+      expectSchemaFailure(
+        { ...outcome, summary: `這是一則可疑訊息。${tail}` },
+        "structural_debris",
+        "summary",
+      );
     },
   );
   it("rejects structural debris in any signal reason", () => {
-    expectSchemaFailure({
-      ...outcome,
-      signals: [
-        { type: "other", severity: "low", reason: "前一項正常。" },
-        { type: "other", severity: "low", reason: "要求提供驗證碼。}]," },
-      ],
-    });
+    expectSchemaFailure(
+      {
+        ...outcome,
+        signals: [
+          { type: "other", severity: "low", reason: "前一項正常。" },
+          { type: "other", severity: "low", reason: "要求提供驗證碼。}]," },
+        ],
+      },
+      "structural_debris",
+      "signal_reason",
+    );
   });
   it("rejects structural debris in any recommendation", () => {
-    expectSchemaFailure({
-      ...outcome,
-      recommendations: ["請先確認。", "請勿點擊連結。}],"],
-    });
+    expectSchemaFailure(
+      {
+        ...outcome,
+        recommendations: ["請先確認。", "請勿點擊連結。}],"],
+      },
+      "structural_debris",
+      "recommendation",
+    );
+  });
+  it.each([
+    "請勿提供驗證碼。",
+    "網址中出現符號 ]，請確認完整網址。",
+    "訊息文字包含 } 字元，但這本身不代表風險。",
+    'JSON 範例為 {"ok":true}。',
+    "陣列例子：[1,2,3]。",
+    '對方傳來字串 {"a":[1,2]}，請不要直接執行。',
+    "請勿提供驗證碼。   ",
+    "括號 { } 出現在句中，請核對。",
+    '這段文字討論 JSON：{"a":1}',
+  ])("accepts legitimate text ending and embedded delimiters: %s", (text) => {
+    expect(normalizeOutcome({ ...outcome, summary: text }).summary).toBe(
+      text.trim(),
+    );
+  });
+  it("classifies provider outcome and public contract failures", () => {
+    expectSchemaFailure({ ...outcome, riskScore: "85" }, "provider_outcome");
+    expectSchemaFailure(
+      { ...outcome, riskScore: 85, category: "none" },
+      "public_contract",
+    );
   });
   it("accepts natural language, embedded delimiters, and normal JSON discussion", () => {
     const text = normalizeOutcome({
@@ -88,7 +128,7 @@ describe("normalization and errors", () => {
         { type: "other", severity: "low", reason: "可能涉及帳號安全。" },
       ],
       recommendations: [
-        "這段文字討論 JSON：{\"a\":1}",
+        '這段文字討論 JSON：{"a":1}',
         "內文使用 } 作為程式符號，請核對語境。",
       ],
     });
@@ -102,7 +142,7 @@ describe("normalization and errors", () => {
         { reason: "可能涉及帳號安全。" },
       ],
       recommendations: [
-        "這段文字討論 JSON：{\"a\":1}",
+        '這段文字討論 JSON：{"a":1}',
         "內文使用 } 作為程式符號，請核對語境。",
       ],
     });
@@ -355,5 +395,61 @@ describe("API validation, deadline, cancellation and single call", () => {
     })(request(await png()));
     expect(response.status).toBe(500);
     expect(await response.text()).not.toMatch(/SECRET|raw request/);
+  });
+  it("schema diagnostics are server-only, allowlisted, and cannot alter HTTP on logging failure", async () => {
+    const telemetry = vi.fn((_event: AnalysisEvent) => {
+      expect(_event.requestId).toMatch(/^[0-9a-f-]{36}$/u);
+      throw new Error("logger unavailable");
+    });
+    const analyze = vi.fn(async () => ({
+      outcome: { ...outcome, summary: "PRIVATE SUMMARY }]," },
+    }));
+    const response = await createAnalyzeHandler({
+      quota: allowedQuota,
+      config: () => config,
+      provider: () => ({ analyze }),
+      telemetry,
+    })(request(await png()));
+    expect(response.status).toBe(500);
+    const body = await response.text();
+    expect(body).not.toMatch(/schemaFailure|PRIVATE SUMMARY/u);
+    expect(analyze).toHaveBeenCalledOnce();
+    expect(telemetry.mock.calls[0][0]).toMatchObject({
+      failureKind: "schema",
+      schemaFailureStage: "structural_debris",
+      schemaFailureField: "summary",
+    });
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    emitTelemetry({
+      requestId: crypto.randomUUID(),
+      status: 500,
+      failureKind: "schema",
+      schemaFailureStage: "structural_debris",
+      schemaFailureField: "summary",
+      durationMs: 1,
+      ...{
+        output_text: "PRIVATE OUTPUT",
+        summary: "PRIVATE SUMMARY",
+        signalReason: "PRIVATE SIGNAL",
+        recommendation: "PRIVATE RECOMMENDATION",
+        image: "PRIVATE IMAGE",
+        prompt: "PRIVATE PROMPT",
+        apiKey: "PRIVATE KEY",
+      },
+    });
+    expect(log).toHaveBeenCalledOnce();
+    expect(log.mock.calls[0][0]).toContain(
+      '"schemaFailureStage":"structural_debris"',
+    );
+    expect(log.mock.calls[0][0]).not.toContain("PRIVATE");
+    log.mockClear();
+    emitTelemetry({
+      requestId: crypto.randomUUID(),
+      status: 200,
+      durationMs: 1,
+      schemaFailureStage: "envelope",
+    });
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
   });
 });
