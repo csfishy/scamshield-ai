@@ -32,6 +32,15 @@ const outcome = {
   signals: normal.signals,
   recommendations: normal.recommendations,
 };
+function expectSchemaFailure(raw: unknown) {
+  try {
+    normalizeOutcome(raw);
+    throw new Error("Expected structural debris to be rejected");
+  } catch (error) {
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({ code: "analysis_failed", kind: "schema" });
+  }
+}
 describe("normalization and errors", () => {
   it("accepts analyzed output, trims text, and matches the shared contract", () => {
     expect(
@@ -43,24 +52,59 @@ describe("normalization and errors", () => {
       "unknown",
     );
   });
-  it("accepts delimiter-like punctuation as legal string content", () => {
-    expect(
-      normalizeOutcome({
-        ...outcome,
-        summary: "合成摘要尾端符號 }],",
-        signals: [
-          {
-            type: "other",
-            severity: "low",
-            reason: "合成理由尾端符號 },",
-          },
-        ],
-        recommendations: ["合成建議尾端符號 ],"],
-      }),
-    ).toMatchObject({
-      summary: "合成摘要尾端符號 }],",
-      signals: [{ reason: "合成理由尾端符號 }," }],
-      recommendations: ["合成建議尾端符號 ],"],
+  it.each(["}],", "}]", "]},", "},]"])(
+    "rejects structural debris in a summary: %s",
+    (tail) => {
+      expectSchemaFailure({ ...outcome, summary: `這是一則可疑訊息。${tail}` });
+    },
+  );
+  it.each(["]],", "}},", "}],  "])(
+    "rejects other malformed tail patterns after trim: %s",
+    (tail) => {
+      expectSchemaFailure({ ...outcome, summary: `這是一則可疑訊息。${tail}` });
+    },
+  );
+  it("rejects structural debris in any signal reason", () => {
+    expectSchemaFailure({
+      ...outcome,
+      signals: [
+        { type: "other", severity: "low", reason: "前一項正常。" },
+        { type: "other", severity: "low", reason: "要求提供驗證碼。}]," },
+      ],
+    });
+  });
+  it("rejects structural debris in any recommendation", () => {
+    expectSchemaFailure({
+      ...outcome,
+      recommendations: ["請先確認。", "請勿點擊連結。}],"],
+    });
+  });
+  it("accepts natural language, embedded delimiters, and normal JSON discussion", () => {
+    const text = normalizeOutcome({
+      ...outcome,
+      summary: "  請確認官方客服。  ",
+      signals: [
+        { type: "other", severity: "low", reason: "網址中包含 ] 符號" },
+        { type: "other", severity: "low", reason: "可能涉及帳號安全。" },
+      ],
+      recommendations: [
+        "這段文字討論 JSON：{\"a\":1}",
+        "內文使用 } 作為程式符號，請核對語境。",
+      ],
+    });
+    expect(text).toMatchObject({
+      riskScore: normal.riskScore,
+      riskLevel: normal.riskLevel,
+      category: normal.category,
+      summary: "請確認官方客服。",
+      signals: [
+        { reason: "網址中包含 ] 符號" },
+        { reason: "可能涉及帳號安全。" },
+      ],
+      recommendations: [
+        "這段文字討論 JSON：{\"a\":1}",
+        "內文使用 } 作為程式符號，請核對語境。",
+      ],
     });
   });
   it("accepts valid insufficient-evidence variants and maps them safely", () => {

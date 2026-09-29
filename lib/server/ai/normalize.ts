@@ -7,8 +7,16 @@ import {
 import { providerOutcomeSchema } from "./provider";
 import { AppError } from "../errors";
 
+function hasStructuralDebris(value: string): boolean {
+  // Two or more closing JSON delimiters at the end are output debris, even
+  // when a comma separates them. A single bracket or brace can be prose.
+  return /[}\]](?:,?[}\]])+,?$/u.test(value);
+}
+
 function normalizeProviderText(value: string): string {
-  return value.trim();
+  const text = value.trim();
+  if (hasStructuralDebris(text)) throw new AppError("analysis_failed", "schema");
+  return text;
 }
 
 export function normalizeOutcome(raw: unknown): AnalysisResult {

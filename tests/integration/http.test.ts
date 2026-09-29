@@ -64,6 +64,18 @@ beforeAll(async () => {
         ? { status: "insufficient_evidence", reason: "unreadable" }
         : scenario === "unknown"
           ? { status: "analyzed", ...providerAnalysis, category: "unknown" }
+          : scenario === "text_debris"
+            ? {
+                status: "analyzed",
+                ...providerAnalysis,
+                signals: [
+                  {
+                    type: "other",
+                    severity: "low",
+                    reason: "要求提供驗證碼。}],",
+                  },
+                ],
+              }
           : { status: "analyzed", ...providerAnalysis };
     const content =
       scenario === "refusal"
@@ -323,6 +335,24 @@ describe("real Next.js + SDK HTTP integration", () => {
     expect(text).not.toContain("private-");
     expect(calls - before).toBe(1);
     if (status === 429) expect(response.headers.get("retry-after")).toBe("25");
+  });
+  it("rejects a schema-valid Provider response with signal text debris", async () => {
+    scenario = "text_debris";
+    const before = calls;
+    try {
+      const response = await post([await imagePart()]);
+      expect(response.status).toBe(500);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
+      const text = await response.text();
+      expect(parseAnalysisResponse(500, JSON.parse(text))).toMatchObject({
+        error: { code: "analysis_failed" },
+      });
+      expect(text).not.toContain("要求提供驗證碼。}],");
+      expect(calls - before).toBe(1);
+    } finally {
+      scenario = "normal";
+    }
   });
   it("application telemetry does not contain private provider output", () => {
     expect(serverLog).not.toMatch(
