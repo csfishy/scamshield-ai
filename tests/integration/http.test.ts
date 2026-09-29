@@ -78,7 +78,19 @@ beforeAll(async () => {
                     },
                   ],
                 }
-              : { status: "analyzed", ...providerAnalysis };
+              : scenario === "summary_debris"
+                ? {
+                    status: "analyzed",
+                    ...providerAnalysis,
+                    summary: "要求提供驗證碼。}],",
+                  }
+                : scenario === "recommendation_debris"
+                  ? {
+                      status: "analyzed",
+                      ...providerAnalysis,
+                      recommendations: ["請勿提供驗證碼。}],"],
+                    }
+                  : { status: "analyzed", ...providerAnalysis };
     const content =
       scenario === "refusal"
         ? [{ type: "refusal", refusal: "private-refusal" }]
@@ -350,24 +362,39 @@ describe("real Next.js + SDK HTTP integration", () => {
     expect(calls - before).toBe(1);
     if (status === 429) expect(response.headers.get("retry-after")).toBe("25");
   });
-  it("rejects a schema-valid Provider response with signal text debris", async () => {
-    scenario = "text_debris";
-    const before = calls;
-    try {
-      const response = await post([await imagePart()]);
-      expect(response.status).toBe(500);
-      expect(response.headers.get("cache-control")).toBe("no-store");
-      expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
-      const text = await response.text();
-      expect(parseAnalysisResponse(500, JSON.parse(text))).toMatchObject({
-        error: { code: "analysis_failed" },
-      });
-      expect(text).not.toContain("要求提供驗證碼。}],");
-      expect(calls - before).toBe(1);
-    } finally {
-      scenario = "normal";
-    }
-  });
+  it.each([
+    ["text_debris", "signal_reason"],
+    ["summary_debris", "summary"],
+    ["recommendation_debris", "recommendation"],
+  ] as const)(
+    "rejects schema-valid %s without exposing text or retrying",
+    async (name, field) => {
+      scenario = name;
+      const before = calls;
+      try {
+        const response = await post([await imagePart()]);
+        expect(response.status).toBe(500);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
+        const text = await response.text();
+        expect(parseAnalysisResponse(500, JSON.parse(text))).toMatchObject({
+          error: { code: "analysis_failed" },
+        });
+        expect(text).not.toContain("要求提供驗證碼。}],");
+        expect(calls - before).toBe(1);
+        const event = await loggedEvent(response.headers.get("x-request-id")!);
+        expect(event).toMatchObject({
+          status: 500,
+          providerEntered: true,
+          schemaFailureStage: "structural_debris",
+          schemaFailureField: field,
+        });
+        expect(JSON.stringify(event)).not.toContain("要求提供驗證碼。}],");
+      } finally {
+        scenario = "normal";
+      }
+    },
+  );
   it.each([
     ["malformed", 500, "output_json_parse", undefined],
     ["text_debris", 500, "structural_debris", "signal_reason"],

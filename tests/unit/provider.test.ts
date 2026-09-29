@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   createOpenAIProvider,
@@ -10,6 +12,11 @@ import {
   type ServerConfig,
 } from "../../lib/server/config";
 import { normal } from "../../fixtures/demo";
+import {
+  CATEGORIES,
+  RISK_LEVELS,
+  SIGNAL_TYPES,
+} from "../../lib/contracts/analysis";
 const providerAnalysis = {
   riskScore: normal.riskScore,
   category: normal.category,
@@ -65,6 +72,77 @@ function result(text: string, status = "completed", refusal = false) {
   };
 }
 describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
+  it("keeps the strict public outcome shape and gives each text field specific guidance", () => {
+    const envelope = outputJsonSchema.properties.outcome as {
+      anyOf: Array<{
+        properties: Record<string, unknown>;
+        required: string[];
+        additionalProperties: boolean;
+      }>;
+    };
+    const analyzed = envelope.anyOf[0];
+    const fields = analyzed.properties;
+    const summary = fields.summary as Record<string, unknown>;
+    const signals = fields.signals as {
+      items: { properties: Record<string, unknown> };
+    };
+    const reason = signals.items.properties.reason as Record<string, unknown>;
+    const recommendations = fields.recommendations as {
+      items: Record<string, unknown>;
+    };
+    const recommendation = recommendations.items;
+    for (const field of [summary, reason, recommendation]) {
+      expect(field).toMatchObject({
+        type: "string",
+        minLength: 1,
+        maxLength: 300,
+      });
+      expect(field.description).toEqual(expect.any(String));
+      expect(field).not.toHaveProperty("pattern");
+    }
+    expect(summary.description).toMatch(
+      /natural-language.*JSON serialization/u,
+    );
+    expect(reason.description).toMatch(
+      /visible evidence.*JSON object or array/u,
+    );
+    expect(recommendation.description).toMatch(
+      /Safe, actionable.*JSON serialization/u,
+    );
+    expect(
+      new Set([
+        summary.description,
+        reason.description,
+        recommendation.description,
+      ]).size,
+    ).toBe(3);
+    expect(analyzed.required).toEqual(Object.keys(fields));
+    expect(analyzed.additionalProperties).toBe(false);
+    expect((fields.category as { enum: unknown }).enum).toEqual(CATEGORIES);
+    expect((signals.items.properties.type as { enum: unknown }).enum).toEqual(
+      SIGNAL_TYPES,
+    );
+    expect(
+      (signals.items.properties.severity as { enum: unknown }).enum,
+    ).toEqual(RISK_LEVELS);
+    expect(JSON.stringify(outputJsonSchema)).not.toMatch(
+      /debug|internal prompt|api.?key/iu,
+    );
+  });
+  it("instructs natural-language text without surrounding serialization debris", async () => {
+    const prompt = await readFile(
+      path.join(process.cwd(), "prompts", "scam-analysis-v1.md"),
+      "utf8",
+    );
+    expect(prompt).toMatch(
+      /summary, each signals\[\]\.reason, and each recommendations\[\] item/u,
+    );
+    expect(prompt).toMatch(/human-readable natural language/u);
+    expect(prompt).toMatch(
+      /never append surrounding JSON object or array delimiters, serialization commas/u,
+    );
+    expect(prompt).toMatch(/A single \} or \] can still appear/u);
+  });
   it("extracts a valid analyzed outcome from the SDK response wrapper", async () => {
     let body: Record<string, unknown> = {};
     const transport = vi.fn<typeof fetch>(async (_url, init) => {

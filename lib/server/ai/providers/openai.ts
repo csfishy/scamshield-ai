@@ -13,7 +13,27 @@ import { AppError, schemaFailure } from "../../errors";
 import { checkAbort } from "../../deadline";
 import type { ScamAIProvider, ProviderResult } from "../provider";
 
-const textSchema = { type: "string", minLength: 1, maxLength: 300 };
+const summarySchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 300,
+  description:
+    "Concise natural-language assessment for the user. User-facing prose only: no JSON serialization syntax, field labels, Markdown, HTML, or hidden reasoning.",
+};
+const signalReasonSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 300,
+  description:
+    "Natural-language explanation grounded in visible evidence and why this signal matters. Do not append JSON object or array closing syntax, field names, or schema syntax; do not claim unperformed verification.",
+};
+const recommendationSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 300,
+  description:
+    "Safe, actionable advice for the user in natural language only. Do not append JSON serialization syntax, provide a suspicious clickable link, or ask for credentials.",
+};
 function object(properties: Record<string, unknown>) {
   return {
     type: "object",
@@ -29,21 +49,21 @@ export const outputJsonSchema = object({
         status: { type: "string", enum: ["analyzed"] },
         riskScore: { type: "integer", minimum: 0, maximum: 100 },
         category: { type: "string", enum: CATEGORIES },
-        summary: textSchema,
+        summary: summarySchema,
         signals: {
           type: "array",
           maxItems: 10,
           items: object({
             type: { type: "string", enum: SIGNAL_TYPES },
             severity: { type: "string", enum: RISK_LEVELS },
-            reason: textSchema,
+            reason: signalReasonSchema,
           }),
         },
         recommendations: {
           type: "array",
           minItems: 1,
           maxItems: 5,
-          items: textSchema,
+          items: recommendationSchema,
         },
       }),
       object({
