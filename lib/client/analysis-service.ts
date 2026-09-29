@@ -5,6 +5,7 @@ import {
   type AnalysisResult,
   type ErrorCode,
 } from "../contracts/analysis";
+import { validRequestId } from "../feedback";
 
 export type ClientErrorKind =
   | "contract"
@@ -23,6 +24,7 @@ export class AnalysisClientError extends Error {
   readonly status?: number;
   readonly code?: ErrorCode;
   readonly retryAfter?: string;
+  readonly requestId?: string;
 
   constructor(
     message: string,
@@ -32,6 +34,7 @@ export class AnalysisClientError extends Error {
       status?: number;
       code?: ErrorCode;
       retryAfter?: string;
+      requestId?: string;
       cause?: unknown;
     },
   ) {
@@ -42,6 +45,7 @@ export class AnalysisClientError extends Error {
     this.status = options.status;
     this.code = options.code;
     this.retryAfter = options.retryAfter;
+    this.requestId = validRequestId(options.requestId);
   }
 }
 
@@ -49,10 +53,12 @@ type AnalyzeOptions = {
   signal?: AbortSignal;
   timeoutMs: number;
   fetcher?: typeof fetch;
+  onResponseMetadata?: (metadata: { requestId?: string }) => void;
 };
 
 function platformError(response: Response): AnalysisClientError {
   const retryAfter = validRetryAfter(response.headers.get("retry-after"));
+  const requestId = validRequestId(response.headers.get("x-request-id"));
 
   if (response.status === 413) {
     return new AnalysisClientError(
@@ -61,6 +67,7 @@ function platformError(response: Response): AnalysisClientError {
         kind: "request_too_large",
         retryable: false,
         status: response.status,
+        requestId,
       },
     );
   }
@@ -70,6 +77,7 @@ function platformError(response: Response): AnalysisClientError {
       kind: "rate_limited",
       retryable: true,
       status: response.status,
+      requestId,
       retryAfter,
     });
   }
@@ -81,6 +89,7 @@ function platformError(response: Response): AnalysisClientError {
         kind: "service_unavailable",
         retryable: true,
         status: response.status,
+        requestId,
       },
     );
   }
@@ -92,6 +101,7 @@ function platformError(response: Response): AnalysisClientError {
         kind: "access_denied",
         retryable: false,
         status: response.status,
+        requestId,
       },
     );
   }
@@ -104,6 +114,7 @@ function platformError(response: Response): AnalysisClientError {
       kind: "invalid_response",
       retryable: false,
       status: response.status,
+      requestId,
     },
   );
 }
@@ -112,10 +123,7 @@ function contractError(
   response: Response,
   value: AnalysisError,
 ): AnalysisClientError {
-  const retryAfter =
-    value.error.code === "provider_rate_limit"
-      ? validRetryAfter(response.headers.get("retry-after"))
-      : undefined;
+  const retryAfter = validRetryAfter(response.headers.get("retry-after"));
 
   return new AnalysisClientError(value.error.message, {
     kind: "contract",
@@ -123,6 +131,7 @@ function contractError(
     status: response.status,
     code: value.error.code,
     retryAfter,
+    requestId: validRequestId(response.headers.get("x-request-id")),
   });
 }
 
@@ -142,6 +151,7 @@ async function parseRemoteResponse(
         kind: "invalid_response",
         retryable: false,
         status: response.status,
+        requestId: validRequestId(response.headers.get("x-request-id")),
         cause: error,
       },
     );
@@ -157,6 +167,7 @@ async function parseRemoteResponse(
         kind: "invalid_response",
         retryable: false,
         status: response.status,
+        requestId: validRequestId(response.headers.get("x-request-id")),
         cause: error,
       },
     );
@@ -168,7 +179,7 @@ async function parseRemoteResponse(
 
 export async function analyzeRemoteImage(
   file: File,
-  { signal, timeoutMs, fetcher = fetch }: AnalyzeOptions,
+  { signal, timeoutMs, fetcher = fetch, onResponseMetadata }: AnalyzeOptions,
 ): Promise<AnalysisResult> {
   const controller = new AbortController();
   let timedOut = false;
@@ -214,6 +225,12 @@ export async function analyzeRemoteImage(
         { kind: "network", retryable: true, cause: error },
       );
     }
+    // Optional display metadata cannot change transport outcome or trigger retries.
+    try {
+      onResponseMetadata?.({
+        requestId: validRequestId(response.headers.get("x-request-id")),
+      });
+    } catch {}
     return await parseRemoteResponse(response);
   } catch (error) {
     if (controller.signal.aborted) {

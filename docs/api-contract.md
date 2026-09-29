@@ -1,8 +1,8 @@
 # ScamShield AI API Contract
 
-- Contract revision：**v2 — Next.js／Vercel migration**
-- 日期：2026-09-04
-- 狀態：v2 已由新 B Backend／shared schema 實作；A 正式 Client 待整合。舊 Blazor 仍為 v1，尚未同步
+- Contract revision：**v2 — Beta 額度錯誤擴充；成功 JSON 不變**
+- 日期：2026-09-29
+- 狀態：Next.js API 與 React Client 共用 strict schema；新增 Beta 錯誤。舊 Blazor 仍為 v1，尚未同步。驗收狀態見 [Beta 檢核](public-beta-readiness.md)
 - Owners：Engineer A／Engineer B
 - 配套：[SDD](sdd.md)、[測試計畫](test-plan.md)
 
@@ -10,7 +10,7 @@
 
 v2 保留 `POST /analyze` 與六欄成功結果。與既有 v1 的差異：
 
-| 項目 | v1（現有 client 參考） | v2（待實作） |
+| 項目 | v1（舊 client 參考） | v2（目前實作） |
 | --- | --- | --- |
 | 圖片大小 | 10 MiB | 4 MiB（4,194,304 bytes） |
 | 整體 body／尺寸／文字上限 | 未完整定義 | 本文件明確定義 |
@@ -39,7 +39,7 @@ A／B 在同一交付變更中確認，禁止單方面加欄、改型別或改 s
 - Number 是 JSON 整數，不接受小數或 numeric string。
 - property order 無意義；不得解析 message 文案來決定程式流程。
 - 不使用會員驗證；部署保護可能先於應用程式攔截請求。
-- Server 可回 `X-Request-Id` 供支援查詢；由 Server 產生，不信任 Client 提供值。
+- 應用程式可控成功／錯誤回應均回 `X-Request-Id` 供支援查詢；由 Server 產生，不信任 Client 提供值。成功 JSON 不新增 metadata。
 - 未知錯誤或 non-JSON response 的 fallback 見第 8 節。
 
 ## 3. Endpoint 與 request
@@ -84,6 +84,8 @@ source／language／filename 長度或欄位結構錯誤使用 400 invalid_reque
 [官方限制](https://vercel.com/docs/functions/limitations)
 
 ### 3.2 驗證順序
+
+Remote 請求先確認部署啟用設定、可信來源 IP 與 Redis 短期防濫用；在昂貴圖片解碼前套用滑動 60 秒限制。下列圖片驗證全部通過、且準備進入 Provider 流程後，才以單次原子操作確認執行期開關並取得 IP／全站日額度與並行租約。配置錯誤、停用、額度不可確認都不呼叫 Provider。日額度不會因無效圖片而扣除。具體政策见第 12 節。
 
 1. HTTP method、頂層媒體類型、body 上限。頂層不是合法 multipart 回 400 invalid_request。
 2. 表單完整性：恰好一個 image file；重複／未知欄位、額外 file part、
@@ -261,13 +263,23 @@ code 為下表 enum；message 為 trim 後 1–300 Unicode code points，
 | 413 | image_too_large | 圖片 bytes、完整 body、單邊尺寸或總像素超限 | false |
 | 415 | unsupported_image_format | MIME／副檔名／實際格式不一致、不支援或多 frame | false |
 | 422 | insufficient_evidence | 有效圖片但無法形成分析；含明確 Provider refusal | false |
+| 429 | client_rate_limited | 同一來源 IP 超過滑動 60 秒 POST 限制 | true |
+| 429 | daily_quota_exceeded | 目前網路 IP 今日分析嘗試額度用完 | true |
+| 429 | global_quota_exceeded | 全站今日分析嘗試額度用完 | true |
+| 429 | analysis_busy | 有效的進行中分析租約已達上限 | true |
 | 429 | provider_rate_limit | Provider 限流 | true |
 | 500 | analysis_failed | Provider schema 無效、normalization 失敗或未分類錯誤 | false |
+| 503 | analysis_disabled | 部署設定或執行期開關停用真實分析 | true |
+| 503 | rate_limit_unavailable | Redis、可信 IP 或額度設定無法可靠使用；fail closed | true |
 | 503 | provider_unavailable | Provider／API timeout、暫時服務或配置無法使用 | true |
 
 Server 可取得等待時間時，429 附 `Retry-After`；Client 支援合法秒數或 HTTP-date，
 無效 header 採一般「稍後再試」。同一 error code 的 message 可以改文案，
 Client 不可用字串比對做邏輯。
+
+日額度的 `Retry-After` 是伺服器計算至下一個 Asia/Taipei 00:00 的整數秒數（向上取整）；短期限制使用計數離開滑動視窗後符合上限的等待時間。並行限制依足夠名額的租約到期時間提供保守等待時間；租約可能提早正常釋放，也可能有其他訪客先取得名額，並非預約成功保證。未知恢復時間的停用／基礎服務故障不填造假的固定秒數。`retryable=true` 只表示條件恢復後可由使用者手動再試，**不授權 SDK、Client 或 middleware 自動重送分析 POST**。
+
+平台自行產生的 429 與本網站額度錯誤、Provider 429 分別處理；不得憑 HTTP 429 猜測為 `provider_rate_limit`。
 
 所有 error 禁止包含 key、stack trace、Provider 原文、內部 prompt 或 exception detail。
 App 必須同時檢查 status、schema 與 code/retryable 對應，矛盾回應視為 invalid response。
@@ -324,3 +336,16 @@ Remote 失敗不可靜默改用 Mock。API 本身在 mock 設定下不呼叫 AI�
 - [ ] 舊 v1 client 不列為 v2 驗收證據。
 
 具體測試 ID 與發佈門檻見 [test-plan.md](test-plan.md)。
+
+## 12. Beta 使用限制與回饋
+
+預設政策為每 IP 滑動 60 秒 3 次 POST、每 IP 每日 10 次與全站每日 200 次獲准進入 AI 流程的分析嘗試，以及全站最多 3 個有效租約。數值由 server 設定，瀏覽器不能覆寫。每日以可信任伺服器時間在 Asia/Taipei 00:00 重置。
+
+- 格式／圖片驗證失敗可計入短期防濫用，不扣日額度。
+- IP 日額度、全站日額度與租約必須原子性全部允許；失敗不部分扣除。
+- 獲准後即使資訊不足、Provider 失敗、取消或逾時，也不退還日額度；reserve後、Provider開始前再遇取消或急停時，也可能已扣日額度而Provider仍為0。這不是每日保證 10 次成功結果。
+- 同一家庭、公司或公共網路可能共用額度；不能稱為每人每日限額。
+- Redis 結果未知、連線／認證／逾時或回應異常均不放行 AI，不退回記憶體計數。
+- 正常釋放租約不退還日額度；不確定 Provider 是否已停止時保留租約至期限。租約不保證 Provider 實際運算數或費用絕對上限。
+
+Request ID 可在成功與失敗畫面複製或由使用者主動带入回饋 Google 表單。只有 Request ID、build identifier、回饋類型可預填；圖片、分析內容、IP／HMAC、Cookie／token 與聯絡 Email 不會自動帶入。一般表單入口與 Email 備用均須有效設定才可操作；沒有外部管道不假裝送出成功。回饋不建立新的公開 API。

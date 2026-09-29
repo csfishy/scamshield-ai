@@ -23,9 +23,23 @@ async function runSuite(mode, specs) {
         NODE_ENV: "production",
         ANALYSIS_MODE: mode,
         AI_API_KEY: "",
+        ANALYSIS_ENABLED: "false",
+        UPSTASH_REDIS_REST_URL: "",
+        UPSTASH_REDIS_REST_TOKEN: "",
+        QUOTA_IP_HMAC_SECRET: "",
         AI_PROVIDER: "openai",
         AI_MODEL: "gpt-4.1-mini-2025-04-14",
         NEXT_TELEMETRY_DISABLED: "1",
+        // Synthetic configuration only: tests intercept external navigation and never submit a form.
+        FEEDBACK_FORM_URL:
+          mode === "remote"
+            ? "https://docs.google.com/forms/d/e/offline-e2e-fixture/viewform?usp=sharing"
+            : "",
+        FEEDBACK_FORM_ENTRY_REQUEST_ID: "entry.101",
+        FEEDBACK_FORM_ENTRY_BUILD: "entry.102",
+        FEEDBACK_FORM_ENTRY_TYPE: "entry.103",
+        FEEDBACK_CONTACT_EMAIL: mode === "remote" ? "beta@example.com" : "",
+        APP_BUILD_ID: "test-beta+09/29",
       },
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe", "ipc"],

@@ -87,6 +87,12 @@ export const ERROR_RULES = {
   unsupported_image_format: { statuses: [415], retryable: false },
   insufficient_evidence: { statuses: [422], retryable: false },
   provider_rate_limit: { statuses: [429], retryable: true },
+  client_rate_limited: { statuses: [429], retryable: true },
+  daily_quota_exceeded: { statuses: [429], retryable: true },
+  global_quota_exceeded: { statuses: [429], retryable: true },
+  analysis_busy: { statuses: [429], retryable: true },
+  analysis_disabled: { statuses: [503], retryable: true },
+  rate_limit_unavailable: { statuses: [503], retryable: true },
   analysis_failed: { statuses: [500], retryable: false },
   provider_unavailable: { statuses: [503], retryable: true },
 } as const;

@@ -1,6 +1,6 @@
 /* global self, caches */
 
-const WORKER_VERSION = "next-v2";
+const WORKER_VERSION = "next-v3-beta";
 const STATIC_CACHE = `scamshield-static-${WORKER_VERSION}`;
 const DOCUMENT_CACHE = `scamshield-document-${WORKER_VERSION}`;
 const KNOWN_APP_CACHE_PREFIXES = [

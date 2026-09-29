@@ -75,7 +75,7 @@ describe("Next.js PWA migration assets", () => {
     expect(worker).toContain('url.pathname === "/analyze"');
     expect(worker.match(/caches\.delete\(key\)/g)).toHaveLength(1);
     expect(worker).toContain("KNOWN_APP_CACHE_PREFIXES.some");
-    expect(worker).toContain('const WORKER_VERSION = "next-v2"');
+    expect(worker).toContain('const WORKER_VERSION = "next-v3-beta"');
     for (const icon of icons) {
       expect(worker).toContain(`"/${icon.file}"`);
     }

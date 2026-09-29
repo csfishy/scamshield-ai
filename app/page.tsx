@@ -2,6 +2,7 @@ import {
   AnalysisWorkspace,
   type AnalysisMode,
 } from "@/components/analysis/AnalysisWorkspace";
+import { getPublicSiteConfig } from "@/lib/server/public-config";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,10 @@ function publicAnalysisMode(): AnalysisMode {
 
 export default function Home() {
   return (
-    <AnalysisWorkspace initialMode={publicAnalysisMode()} timeoutMs={25_000} />
+    <AnalysisWorkspace
+      initialMode={publicAnalysisMode()}
+      timeoutMs={25_000}
+      feedbackConfig={getPublicSiteConfig()}
+    />
   );
 }

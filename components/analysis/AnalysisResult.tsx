@@ -115,11 +115,9 @@ export function AnalysisResultView({
         </ol>
       </section>
 
-      {result.riskLevel === "low" && (
-        <p className="low-risk-reminder">
-          低風險不等於安全保證；涉及金錢、帳號或驗證碼時，仍請透過官方管道查證。
-        </p>
-      )}
+      <p className="low-risk-reminder">
+        本工具提供詐騙風險提示，可能誤判。低風險不代表安全，請勿僅依本結果付款或提供個人資料。本工具不會查證網址、銀行或官方身分。
+      </p>
     </div>
   );
 }

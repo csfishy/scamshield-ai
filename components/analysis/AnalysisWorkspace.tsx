@@ -25,6 +25,11 @@ import {
   type ClientImageInfo,
 } from "@/lib/client/image-file";
 import { AnalysisResultView } from "./AnalysisResult";
+import {
+  FeedbackLinks,
+  RequestReference,
+} from "@/components/feedback/FeedbackLinks";
+import type { FeedbackConfig } from "@/lib/feedback";
 
 export type AnalysisMode = "mock" | "remote";
 type DemoKey = keyof typeof demoFixtures | "insufficientEvidence";
@@ -36,6 +41,7 @@ type ViewError = {
   retryable: boolean;
   retryAfter?: string;
   code?: string;
+  requestId?: string;
 };
 
 const demoOptions: { key: DemoKey; label: string; detail: string }[] = [
@@ -104,9 +110,11 @@ function IconScan() {
 export function AnalysisWorkspace({
   initialMode,
   timeoutMs,
+  feedbackConfig,
 }: {
   initialMode: AnalysisMode;
   timeoutMs: number;
+  feedbackConfig: FeedbackConfig;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -114,6 +122,7 @@ export function AnalysisWorkspace({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [demoKey, setDemoKey] = useState<DemoKey>("fakeDelivery");
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [requestId, setRequestId] = useState<string | undefined>();
   const [error, setError] = useState<ViewError | null>(null);
   const [liveMessage, setLiveMessage] = useState("尚未選擇圖片");
 
@@ -164,6 +173,7 @@ export function AnalysisWorkspace({
   const clearOutcome = () => {
     setResult(null);
     setError(null);
+    setRequestId(undefined);
   };
 
   const handleFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -234,7 +244,11 @@ export function AnalysisWorkspace({
     busy.current = false;
     clearOutcome();
     setPhase(selectedFile ? "ready" : "idle");
-    setLiveMessage("已取消分析。你可以重新開始或選擇另一張圖片。");
+    setLiveMessage(
+      initialMode === "remote"
+        ? "已取消等待；已進入 AI 流程的嘗試仍可能計次。你可以重新開始或選擇另一張圖片。"
+        : "已取消分析。你可以重新開始或選擇另一張圖片。",
+    );
   };
 
   const analyze = async () => {
@@ -269,6 +283,10 @@ export function AnalysisWorkspace({
         nextResult = await analyzeRemoteImage(selectedFile, {
           signal: controller.signal,
           timeoutMs,
+          onResponseMetadata: (metadata) => {
+            if (currentGeneration === generation.current)
+              setRequestId(metadata.requestId);
+          },
         });
       }
 
@@ -304,6 +322,7 @@ export function AnalysisWorkspace({
         retryable: clientError.retryable,
         retryAfter: retryAfterLabel(clientError.retryAfter),
         code: clientError.code,
+        requestId: clientError.requestId,
       });
       setPhase("error");
       setLiveMessage(clientError.message);
@@ -344,6 +363,13 @@ export function AnalysisWorkspace({
         </span>
       </header>
 
+      <nav className="site-nav" aria-label="網站導覽">
+        <span className="beta-label">公開測試版 Beta</span>
+        <Link href="/demo">本機 Demo</Link>
+        <Link href="/privacy">隱私說明</Link>
+        <a href="#site-feedback">意見回饋</a>
+      </nav>
+
       <main>
         <section className="intro" aria-labelledby="page-title">
           <p className="eyebrow">停一下，再確認</p>
@@ -362,8 +388,8 @@ export function AnalysisWorkspace({
               ) : (
                 <>
                   <strong>即時模式：</strong>
-                  圖片會傳送至本服務與已設定的 AI
-                  供應商；保存政策仍需依正式部署確認。
+                  按下「開始 AI 分析」後，圖片才會傳送至本服務的 Vercel 部署與
+                  OpenAI；選圖預覽留在本機。
                 </>
               )}
             </p>
@@ -444,8 +470,20 @@ export function AnalysisWorkspace({
 
             <p className="privacy-hint">
               <span aria-hidden="true">!</span>
-              上傳前請先遮住姓名、帳號、驗證碼與其他敏感資訊。
+              上傳前請先遮住不必要的姓名、電話、帳號、OTP 驗證碼與其他敏感資訊。
             </p>
+            <div className="data-notice" role="note">
+              <p>
+                服務記錄必要技術資料（問題編號、狀態、耗時及取得時的使用量）；IP
+                會轉換為代碼，供 Upstash Redis
+                進行短期防濫用與額度控制。外部回饋使用 Google 表單。
+                <Link href="/privacy">閱讀資料處理與隱私說明</Link>。
+              </p>
+              <p>
+                同一家庭、公司或公共網路可能共用額度。額度按獲准進入 AI
+                流程的分析嘗試計次；資訊不足、取消、逾時或失敗仍可能計次，不保證成功次數。
+              </p>
+            </div>
 
             {initialMode === "mock" && (
               <fieldset className="demo-picker">
@@ -561,6 +599,17 @@ export function AnalysisWorkspace({
                   result={result}
                   isDemo={initialMode === "mock"}
                 />
+                {initialMode === "remote" && (
+                  <>
+                    <RequestReference requestId={requestId} />
+                    <FeedbackLinks
+                      config={feedbackConfig}
+                      requestId={requestId}
+                      label="回報判斷問題"
+                      type="判斷可能有誤"
+                    />
+                  </>
+                )}
                 <button
                   className="button button-secondary full-width"
                   type="button"
@@ -584,6 +633,17 @@ export function AnalysisWorkspace({
                 {analysisError.retryAfter && (
                   <p className="error-guidance">{analysisError.retryAfter}</p>
                 )}
+                {initialMode === "remote" && (
+                  <RequestReference
+                    requestId={analysisError.requestId ?? requestId}
+                  />
+                )}
+                <FeedbackLinks
+                  config={feedbackConfig}
+                  requestId={analysisError.requestId ?? requestId}
+                  label="回報問題"
+                  type="操作問題"
+                />
                 <div className="error-actions">
                   {analysisError.retryable && (
                     <button
@@ -624,6 +684,9 @@ export function AnalysisWorkspace({
           僅提供風險輔助判斷。涉及金錢、帳號或個人資料時，請改用官方網站或電話再次查證。
         </p>
       </footer>
+      <section id="site-feedback" aria-label="意見回饋管道">
+        <FeedbackLinks config={feedbackConfig} />
+      </section>
     </div>
   );
 }

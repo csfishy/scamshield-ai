@@ -11,7 +11,15 @@ const messages: Record<ErrorCode, string> = {
   unsupported_image_format: "僅接受單張非動畫 JPEG 或 PNG，請確認圖片格式。",
   insufficient_evidence:
     "目前圖片資訊不足，請提供文字清楚且包含完整上下文的截圖。",
-  provider_rate_limit: "分析服務忙碌，請稍後再試。",
+  provider_rate_limit: "AI 供應商目前請求較多，請稍後再試。",
+  client_rate_limited: "操作較頻繁，請稍後再試。",
+  daily_quota_exceeded:
+    "目前網路的今日分析額度已用完，將於台北時間 00:00 重置。同一家庭、公司或公共網路可能共用額度。",
+  global_quota_exceeded:
+    "今日測試額度已用完，將於台北時間 00:00 重置，請明天再來。",
+  analysis_busy: "目前分析人數較多，請稍後再試。",
+  analysis_disabled: "分析功能暫時停止，其他功能與意見回饋仍可使用。",
+  rate_limit_unavailable: "目前無法確認分析額度，分析暫時停止，請稍後再試。",
   analysis_failed: "目前無法產生有效分析，請換圖或稍後再試。",
   provider_unavailable: "分析服務暫時無法使用，請稍後再試。",
 };
@@ -47,7 +55,7 @@ export function errorResponse(
   });
   if (status === 405) headers.set("Allow", "POST");
   const retryAfter = validRetryAfter(error.retryAfter ?? null);
-  if (error.code === "provider_rate_limit" && retryAfter)
+  if (ERROR_RULES[error.code].statuses[0] === 429 && retryAfter)
     headers.set("Retry-After", retryAfter);
   return new Response(
     head

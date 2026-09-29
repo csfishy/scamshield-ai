@@ -127,6 +127,45 @@ test("small viewport has no horizontal overflow and keeps controls usable", asyn
   ).toBe(true);
 });
 
+test("Beta privacy and unconfigured feedback remain available without uploading", async ({
+  page,
+}) => {
+  let analysisRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/analyze")) analysisRequests++;
+  });
+  await page.goto("/");
+  await expect(
+    page.getByText("公開測試版 Beta", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "意見回饋", exact: true }).click();
+  const summary = page.locator("#site-feedback summary");
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByText("回饋聯絡管道尚待管理者設定，目前無法提交回饋。"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /開啟 Google 表單/ }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "使用 Email 聯絡" })).toHaveCount(
+    0,
+  );
+  await page
+    .getByRole("link", { name: "隱私說明", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "隱私與使用限制" }),
+  ).toBeVisible();
+  await expect(page.getByText(/不代表所有平台零留存/)).toBeVisible();
+  await page.getByRole("link", { name: "開啟不會呼叫 AI 的 Demo" }).click();
+  await expect(
+    page.getByRole("button", { name: "顯示 Demo 結果" }),
+  ).toBeVisible();
+  expect(analysisRequests).toBe(0);
+});
+
 test("mobile result is reachable, focused, and remains within the viewport", async ({
   page,
 }) => {

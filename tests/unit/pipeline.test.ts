@@ -14,6 +14,7 @@ import { emitTelemetry } from "../../lib/server/telemetry";
 import { normal } from "../../fixtures/demo";
 import { png, request } from "../helpers/images";
 import type { AnalysisContext } from "../../lib/server/ai/provider";
+import { allowedQuota } from "../helpers/quota";
 export const config: ServerConfig = {
   mode: "remote",
   provider: "openai",
@@ -119,6 +120,7 @@ describe("API validation, deadline, cancellation and single call", () => {
   it("invalid inputs and mock API never call Provider", async () => {
     const analyze = vi.fn(async () => ({ outcome }));
     const handler = createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => config,
       provider: () => ({ analyze }),
       telemetry: () => {},
@@ -130,6 +132,7 @@ describe("API validation, deadline, cancellation and single call", () => {
     ])
       expect((await handler(req)).status).toBe(400);
     const mock = createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => ({ ...config, mode: "mock" }),
       provider: () => ({ analyze }),
       telemetry: () => {},
@@ -141,6 +144,7 @@ describe("API validation, deadline, cancellation and single call", () => {
     const analyze = vi.fn(async () => ({ outcome })),
       telemetry = vi.fn();
     const handler = createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => config,
       provider: () => ({ analyze }),
       telemetry,
@@ -181,6 +185,7 @@ describe("API validation, deadline, cancellation and single call", () => {
       throw new AppError(code, "network", "30");
     });
     const response = await createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => config,
       provider: () => ({ analyze }),
       telemetry: () => {},
@@ -196,6 +201,7 @@ describe("API validation, deadline, cancellation and single call", () => {
       return new Promise<never>(() => {});
     });
     const response = await createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => ({ ...config, providerTimeoutMs: 20 }),
       provider: () => ({ analyze }),
       telemetry: () => {},
@@ -217,6 +223,7 @@ describe("API validation, deadline, cancellation and single call", () => {
       return new Promise<never>(() => {});
     });
     const handler = createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => config,
       provider: () => ({ analyze }),
       telemetry: () => {},
@@ -238,6 +245,7 @@ describe("API validation, deadline, cancellation and single call", () => {
     const analyze = vi.fn(async () => ({ outcome }));
     let n = 0;
     const handler = createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => config,
       provider: () => ({ analyze }),
       telemetry: () => {},
@@ -261,6 +269,7 @@ describe("API validation, deadline, cancellation and single call", () => {
       duplex: "half",
     } as RequestInit);
     const response = await createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => ({ ...config, apiTimeoutMs: 20 }),
       provider: () => ({ analyze }),
       telemetry: () => {},
@@ -275,11 +284,23 @@ describe("API validation, deadline, cancellation and single call", () => {
       requestId: crypto.randomUUID(),
       status: 500,
       durationMs: 1,
-      ...{ filename: "PRIVATE", prompt: "SECRET", raw: "RAW" },
+      ...{
+        filename: "PRIVATE",
+        prompt: "SECRET",
+        raw: "RAW",
+        ip: "192.0.2.123",
+        ipHash: "PRIVATE-HMAC",
+        redisToken: "SECRET-REDIS",
+        feedbackEmail: "private@example.test",
+        feedbackText: "PRIVATE-FEEDBACK",
+      },
     });
-    expect(log.mock.calls.flat().join()).not.toMatch(/PRIVATE|SECRET|RAW/);
+    expect(log.mock.calls.flat().join()).not.toMatch(
+      /PRIVATE|SECRET|RAW|192\.0\.2\.123|private@example/,
+    );
     log.mockRestore();
     const response = await createAnalyzeHandler({
+      quota: allowedQuota,
       config: () => config,
       provider: () => ({
         analyze: async () => {

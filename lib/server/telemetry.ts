@@ -27,6 +27,14 @@ const eventSchema = z.object({
   model: z.literal("gpt-4.1-mini-2025-04-14").optional(),
   inputTokens: z.number().int().nonnegative().optional(),
   outputTokens: z.number().int().nonnegative().optional(),
+  providerEntered: z.boolean().optional(),
+  usageKnown: z.boolean().optional(),
+  quotaOutcome: z
+    .enum(["not_checked", "preflight_allowed", "reserved", "started", "denied"])
+    .optional(),
+  leaseDisposition: z
+    .enum(["released", "held_until_expiry", "release_failed"])
+    .optional(),
 });
 export type AnalysisEvent = z.infer<typeof eventSchema>;
 // Runtime allowlist strips even accidental caller additions. Never log exceptions.

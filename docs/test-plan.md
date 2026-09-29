@@ -1,7 +1,7 @@
 # ScamShield AI 測試與驗收計畫
 
-- 版本：2.0｜2026-09-04
-- 狀態：A+B 自動化與單次真實 AI smoke 已有證據；受保護 Preview 已部署，完整 AI／Preview Remote／手機與 PWA 實機尚未驗收。詳見 [B 進度](backend-progress.md)
+- 版本：2.2｜2026-09-29
+- 狀態：新增 Beta 回饋／額度／急停與匿名 AI OFF 驗收。歷史 A+B 證據保留於 [B 進度](backend-progress.md)，231 tests／19 E2E 保留於 [第一階段本機快照](public-beta-readiness.md)；新增工具與已授權 Preview／免費隔離整合的結果另記 [第二階段驗收](preview-acceptance-2026-09-29.md)
 - Owners：B（API／AI）、A（UI／PWA）、產品（人工標註）、企劃（實機展示）
 - 規範：[API contract v2](api-contract.md)、[SDD](sdd.md)
 
@@ -12,7 +12,7 @@
 | Unit／contract | TypeScript 測試 runner（Day 1 鎖定 Vitest） | 否 | 每個 PR |
 | API integration | 實際 Next.js HTTP endpoint＋可替換 Provider stub | 否 | 每個 PR |
 | Browser E2E | Playwright＋production build | 否 | PR／候選版本 |
-| 部署 smoke | Vercel Preview／Production | 小量 | 每次部署 |
+| 部署 smoke | Vercel Preview／Production 分別記錄；AI OFF 可先驗 HTTP 邊界 | AI OFF 否；合法圖片另需小量付費授權 | 每次部署 |
 | AI evaluation | 固定案例＋鎖定模型／prompt | 是 | prompt／模型變更與發佈前 |
 | 手機／PWA | 真實 iOS Safari、Android Chrome | 小量／Mock | 切換前 |
 
@@ -173,3 +173,61 @@ p95 樣本少時列全部耗時與樣本量，不宣稱具有統計代表性。
 - [ ] rollback 演練與三輪 Demo 結果。
 
 尚未執行的項目保留未勾選；測試腳本本身不代表測試已通過。
+
+## 9. Beta 回饋、額度與費用保護回歸
+
+本節是覆蓋清單，**不是 PASS 報告**。實際執行命令、数量、失敗及 NOT_RUN 分別寫入 [第一階段快照](public-beta-readiness.md) 與 [第二階段驗收](preview-acceptance-2026-09-29.md)，不能把新增工具測試追溯算入原 231 項。Mock／替身只驗應用程式邏輯；真實 Redis Lua 與競態需要隔離 Redis 測試，不能以 Promise.all 加假計數器冒充分散式原子性。
+
+| ID | 情境 | 必要斷言／層級 |
+| --- | --- | --- |
+| FB-01 | Google 表單有／無設定；非法 protocol、host、路徑、credentials | 非預期 URL 拒絕；無設定無假成功／占位連結；unit |
+| FB-02 | Request ID／build／類型預填，既有 query、特殊字元、缺 entry、forms.gle | 正確編碼；短址／缺 entry 退回一般連結；unit |
+| FB-03 | Email 有／無設定；CRLF／query 注入 | 有效 mailto 與複製；無設定不顯示無效按鈕；拒絕標頭注入；unit／E2E |
+| FB-04 | 成功、失敗、限額及首頁回饋 | 使用者主動操作、告知 Google 外部服務；Request ID 可複製；不含圖片／結果／IP／secret；E2E |
+| RATE-01 | 第 1–3 次／第 4 次；滑動 60 秒邊界 | 拒絕發生在圖片 decode／Provider 前；Retry-After 反映視窗；unit／Redis |
+| RATE-02 | 個別 IP／全站每日上限、不同 IP、台北跨日及前後 1ms | 配額／重置與 Retry-After 正確；unit／Redis |
+| RATE-03 | IPv4／IPv6 等價表示、mapped IPv4、錯誤 IP | 正規化後同一來源不能多領；不自行合併 IPv6 網段；unit |
+| RATE-04 | body/query/不可信 X-Forwarded-For／自稱代理欄位 | 不能覆寫部署決定的信任來源；無可信 IP 則 Provider=0；unit／HTTP |
+| RATE-05 | Production／Preview namespace | 不得混用；預覽不扣正式額度；unit；實際憑證隔離人工驗收 |
+| RATE-06 | 壞圖片、超額、配置錯誤、mock | 壞圖片不扣日額度，所有拒絕 Provider=0；unit／HTTP |
+| ATOM-01 | 同時搶最後 IP／全站日額度與第 3 個租約 | 原子腳本最多允許可用數；失敗不部分扣次；真 Redis |
+| ATOM-02 | 相同 operation token 重放、SDK重送／回應遺失 | 不重複扣次；未知結果不啟動 Provider；unit＋真 Redis |
+| ATOM-03 | ownership、重複釋放、過期、模擬執行個體中斷 | 不釋放他人名額、不產生負值，期限後可回收；真 Redis |
+| ATOM-04 | 取消、逾時、資訊不足、Provider失敗 | 日額度不退款；不確定停止時租約保守保留；unit／HTTP |
+| FAIL-01 | Redis缺設定、連線、認證、timeout、非法／非預期結果 | fail closed，Provider=0；不fallback memory、不接受 SDK fail-open；unit／HTTP |
+| STOP-01 | 部署停用；runtime key缺少、無效、停用／讀取失敗 | 新請求 Provider=0；有效設定允許；急停與恢復真 Redis／人工 |
+| STOP-02 | 停用時首頁、Demo、回饋 | 都能使用，真分析不被誤標成功；E2E |
+| BAPI-01 | 六個新錯誤＋Provider429＋平台non-JSON429 | strict schema/status/retryable mapping、清楚 UI；unit／HTTP／E2E |
+| BAPI-02 | 全部应用可控錯誤 | no-store、X-Request-Id、安全訊息；未知恢復時間不造假 Retry-After；unit／HTTP |
+| BUI-01 | 快速連點／手動再試／離線／取消 | 無自動 POST重送；同一互動只有一次提交；E2E |
+| BUI-02 | 小螢幕／鍵盤／狀態可讀／隱私入口 | 可操作；iPhone Safari/PWA 另做真機驗收，桌面不代替；E2E＋人工 |
+| BPRIV-01 | 上傳前選圖／預覽與惡意敏感輸入 | 明確送出前無上傳；日誌、回饋 URL、public bundle無敏感值；unit／E2E／bundle |
+| BOPS-01 | 遙測故障與usage缺失 | 不改HTTP、不重呼叫Provider；未知usage不變0；unit |
+
+離線 HTTP 使用 SDK loopback Provider 與 quota 依賴注入替身，E2E 使用瀏覽器 route 替身；正式程式不提供公用 debug query 或遠端 mock fallback。`test:redis` 僅允許 `127.0.0.1`，不讀取遠端憑證；獨立 `test:redis:rest` 只在明確授權後對指定測試 Upstash 資源執行，使用專用 `TEST_UPSTASH_*` 憑證、host 比對、隨機 namespace、命令上限與 exact-key cleanup。兩者都不清空共享資料庫，不修改主 Preview 控制鍵，詳見 [Runbook §12](deployment-runbook.md#12-preview-驗收工具與版本核對)。
+
+### 部署驗收（第一階段 NOT_RUN；第二階段另記進度）
+
+為 Preview 與 Production **分別**記錄 deploy SHA、URL、模式、操作者、時間、Provider 呼叫數及 usage；未測項目保留 NOT_RUN。公開訪客可使用預定入口且不必登入 Vercel、真分析不是 Demo／Mock、iPhone Safari／PWA、Google 表單無登入實際送出且無回覆摘要、獨立 Redis故障／原子競態、直接HTTP不可繞過限額、急停／恢復、舊PWA更新與新錯誤契約、安全去識別化素材有限AI smoke、bundle／依賴／公開設定檢查全部需有證據。
+
+真實 Provider smoke／品質評估需要新的明確總預算與最多呼叫數授權；既有 smoke 授權已使用，不沿用。成本／留存／公開分享另經人工核准，完整順序見 Beta 檢核。
+
+## 10. 第二階段驗收工具回歸
+
+第二階段授權涵蓋 Preview、免費隔離 Redis 與 Google 表單；真實 AI 呼叫仍為 0。以下工具的離線測試與其後外部執行必須分開記錄，新增測試不追溯改写第一階段 231／19 的數量。
+
+| ID | 工具／情境 | 必要斷言與證據 |
+| --- | --- | --- |
+| OFF-01 | `smoke:preview --ai-off` 參數 | 必須明確指定 `analysis_disabled` 或 `provider_unavailable`；未指定／未知 code／混入 image 或付費參數時，在任何網路請求前拒絕 |
+| OFF-02 | shell 存在 Vercel bypass secret | 仍不帶 bypass header、Cookie、有效圖片；redirect 不跟隨，且不重試 |
+| OFF-03 | 405 方法與 503 POST | status、Allow、no-store、有效 Request ID、strict error body 與指定 code 全部通過才 PASS；另一個合法 503 code 也不能替代 |
+| OFF-04 | Protection 302／401／403、HTML 或壞 headers | 匿名驗收 FAIL／BLOCKED，不能藉 bypass 改為 PASS；平台攔截可能沒有應用 Request ID，記錄限制 |
+| OFF-05 | 既有 explicit paid guard | 缺授權參數、budget 不足均在網路前拒絕；單張 image 路徑僅以 fetch 替身驗證，不能真的執行付費測試 |
+| REST-01 | REST 目標與憑證驗證 | 必須用專用 `TEST_UPSTASH_*`、精確 `--expected-host`、`--allow-isolated-redis-write`；不 fallback app credentials |
+| REST-02 | REST timeout、認證／非預期回應、redirect | 單次呼叫、不自動 retry；安全錯誤碼不洩露 token／URL／原始回應；offline transport tests |
+| REST-03 | namespace／命令與清理 | 只允許隨機 test prefix 與白名單命令；250 次上限；不碰主 Preview／Production key，不 SCAN／KEYS／FLUSH；exact-key cleanup＋EXISTS |
+| REST-04 | 真實 Upstash Lua／競態／TTL／未知結果 | 已授權的隔離資源實跑，記錄實际 checks、script hashes、target fingerprint、cleanup、Provider=0；離線 harness PASS 不代替它 |
+| STAGE-01 | Node 24／npm 12 clean install | 以確切 Node 啟動 Corepack，保存真實版本／npm ci／lockfile 差異；既有安裝樹的 PASS 不冒充 clean install |
+| STAGE-02 | Vercel build／GitHub workflow | 保存確切 SHA、build log 版本；feature branch push 不觸發 Backend workflow 就列 NOT_RUN |
+
+命令與安全邊界見 [Runbook §12](deployment-runbook.md#12-preview-驗收工具與版本核對)，實際結果見 [第二階段 Preview 驗收](preview-acceptance-2026-09-29.md)。AI OFF 的 `provider_unavailable` 不證明 Redis 控制鍵，也不以簽入帳號填表成功代替匿名表單驗收。

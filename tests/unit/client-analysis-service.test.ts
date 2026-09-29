@@ -17,6 +17,87 @@ function jsonResponse(body: unknown, status = 200, headers?: HeadersInit) {
 }
 
 describe("client /analyze transport", () => {
+  const requestId = "dbbbdbbb-1234-4321-8123-dbbbbbbbbbbb";
+
+  it("preserves a validated Request ID on success without changing the result contract", async () => {
+    const onResponseMetadata = vi.fn();
+    const fetcher = vi.fn(async () =>
+      jsonResponse(fakeDelivery, 200, { "x-request-id": requestId }),
+    ) as unknown as typeof fetch;
+    await expect(
+      analyzeRemoteImage(file, {
+        timeoutMs: 25_000,
+        fetcher,
+        onResponseMetadata,
+      }),
+    ).resolves.toEqual(fakeDelivery);
+    expect(onResponseMetadata).toHaveBeenCalledWith({ requestId });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects unsafe Request ID headers and ignores display callback failures", async () => {
+    const onResponseMetadata = vi.fn(() => {
+      throw new Error("display failed");
+    });
+    const fetcher = vi.fn(async () =>
+      jsonResponse(fakeDelivery, 200, {
+        "x-request-id": "private-token-or-ip",
+      }),
+    ) as unknown as typeof fetch;
+    await expect(
+      analyzeRemoteImage(file, {
+        timeoutMs: 25_000,
+        fetcher,
+        onResponseMetadata,
+      }),
+    ).resolves.toEqual(fakeDelivery);
+    expect(onResponseMetadata).toHaveBeenCalledWith({ requestId: undefined });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["client_rate_limited", 429],
+    ["daily_quota_exceeded", 429],
+    ["global_quota_exceeded", 429],
+    ["analysis_busy", 429],
+    ["analysis_disabled", 503],
+    ["rate_limit_unavailable", 503],
+  ])(
+    "parses %s separately from provider errors with safe retry metadata",
+    async (code, status) => {
+      const fetcher = vi.fn(async () =>
+        jsonResponse(
+          { error: { code, message: "分析暫時無法使用。", retryable: true } },
+          Number(status),
+          { "retry-after": "61", "x-request-id": requestId },
+        ),
+      ) as unknown as typeof fetch;
+      await expect(
+        analyzeRemoteImage(file, { timeoutMs: 25_000, fetcher }),
+      ).rejects.toMatchObject({
+        kind: "contract",
+        code,
+        status,
+        requestId,
+        retryAfter: "61",
+      });
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("keeps a Request ID on an intercepted platform error when available", async () => {
+    const fetcher = vi.fn(
+      async () =>
+        new Response("unavailable", {
+          status: 503,
+          headers: { "x-request-id": requestId },
+        }),
+    ) as unknown as typeof fetch;
+    await expect(
+      analyzeRemoteImage(file, { timeoutMs: 25_000, fetcher }),
+    ).rejects.toMatchObject({ kind: "service_unavailable", requestId });
+  });
+
   it("posts the v2 multipart fields to the same-origin route", async () => {
     const fetcher = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {

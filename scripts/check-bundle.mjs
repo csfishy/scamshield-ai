@@ -22,8 +22,14 @@ const markers = [
   "https://api.openai.com/v1",
   "stub-only",
   "private-provider-error",
+  "UPSTASH_REDIS_REST_TOKEN",
+  "QUOTA_IP_HMAC_SECRET",
+  "QUOTA_TRUST_PROXY",
 ];
 if (process.env.AI_API_KEY) markers.push(process.env.AI_API_KEY);
+for (const name of ["UPSTASH_REDIS_REST_TOKEN", "QUOTA_IP_HMAC_SECRET"]) {
+  if (process.env[name]) markers.push(process.env[name]);
+}
 for (const file of targets) {
   const text = await readFile(file, "utf8");
   if (markers.some((m) => text.includes(m)))

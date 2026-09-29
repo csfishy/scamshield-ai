@@ -23,6 +23,7 @@ let next: ChildProcess | undefined,
   base: string,
   calls = 0,
   scenario = "normal",
+  quotaCode = "",
   serverLog = "";
 function portOf(server: Server) {
   const address = server.address();
@@ -38,6 +39,11 @@ async function port() {
 }
 beforeAll(async () => {
   stub = createServer(async (req, res) => {
+    if (req.url === "/quota") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ code: quotaCode }));
+      return;
+    }
     calls++;
     for await (const _ of req) {
       void _;
@@ -133,8 +139,10 @@ beforeAll(async () => {
     `import {createAnalyzeHandler} from '../../lib/server/analyze';
 import {createOpenAIProvider} from '../../lib/server/ai/providers/openai';
 import {MODEL,PROMPT_VERSION} from '../../lib/server/config';
+import {AppError} from '../../lib/server/errors';
 export const runtime='nodejs'; export const maxDuration=30;
-export const POST=createAnalyzeHandler({config:()=>({mode:'remote',provider:'openai',model:MODEL,apiKey:'stub-only',providerTimeoutMs:15000,apiTimeoutMs:20000,promptVersion:PROMPT_VERSION}),provider:c=>createOpenAIProvider(c,(_url,init)=>fetch('http://127.0.0.1:${portOf(stub)}/responses',init))});
+const quota=()=>({async preflight(){const value=await (await fetch('http://127.0.0.1:${portOf(stub)}/quota')).json();if(value.code)throw new AppError(value.code,'rate_limit',value.code.endsWith('exceeded')?'28800':'60');return {async acquire(){return {async release(){}}},async assertEnabled(){}}}});
+export const POST=createAnalyzeHandler({quota,config:()=>({mode:'remote',provider:'openai',model:MODEL,apiKey:'stub-only',providerTimeoutMs:15000,apiTimeoutMs:20000,promptVersion:PROMPT_VERSION}),provider:c=>createOpenAIProvider(c,(_url,init)=>fetch('http://127.0.0.1:${portOf(stub)}/responses',init))});
 export const GET=POST, HEAD=POST, OPTIONS=POST, PUT=POST, PATCH=POST, DELETE=POST;`,
   );
   const nextPort = await port();
@@ -211,6 +219,35 @@ async function imagePart(format = "png"): Promise<Part> {
   };
 }
 describe("real Next.js + SDK HTTP integration", () => {
+  it.each([
+    ["client_rate_limited", 429],
+    ["daily_quota_exceeded", 429],
+    ["global_quota_exceeded", 429],
+    ["analysis_busy", 429],
+    ["analysis_disabled", 503],
+    ["rate_limit_unavailable", 503],
+  ] as const)(
+    "direct HTTP %s denies before any Provider calls (quota double)",
+    async (code, status) => {
+      const before = calls;
+      quotaCode = code;
+      try {
+        const response = await post([await imagePart()]);
+        expect(response.status).toBe(status);
+        expect(
+          parseAnalysisResponse(status, await response.json()),
+        ).toMatchObject({ error: { code } });
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
+        expect(response.headers.get("retry-after")).toBe(
+          status === 429 ? (code.endsWith("exceeded") ? "28800" : "60") : null,
+        );
+        expect(calls).toBe(before);
+      } finally {
+        quotaCode = "";
+      }
+    },
+  );
   it("PNG/JPEG, fields/defaults, clean HTTP headers, calls exactly once", async () => {
     for (const format of ["png", "jpeg"]) {
       scenario = "normal";
