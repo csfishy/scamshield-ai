@@ -48,6 +48,7 @@ const image = {
   height: 10,
   sizeBytes: 28,
 };
+const expectedTextTailPattern = "^[\\s\\S]*[^,，}\\]]$";
 function result(text: string, status = "completed", refusal = false) {
   return {
     id: "resp_test",
@@ -96,9 +97,9 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
         type: "string",
         minLength: 1,
         maxLength: 300,
+        pattern: expectedTextTailPattern,
       });
       expect(field.description).toEqual(expect.any(String));
-      expect(field).not.toHaveProperty("pattern");
     }
     expect(summary.description).toMatch(
       /natural-language.*JSON serialization/u,
@@ -128,6 +129,31 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
     expect(JSON.stringify(outputJsonSchema)).not.toMatch(
       /debug|internal prompt|api.?key/iu,
     );
+  });
+  it("rejects known serialization tails while allowing natural-language punctuation", () => {
+    const pattern = new RegExp(expectedTextTailPattern, "u");
+    for (const text of [
+      "可疑要求。}],",
+      "可疑要求。]},",
+      "可疑要求。},]",
+      "可疑要求。}},",
+      "可疑要求。]],",
+      "可疑要求，",
+      '{"ok":true}',
+    ]) {
+      expect(pattern.test(text), text).toBe(false);
+    }
+    for (const text of [
+      "這是一則可疑訊息。",
+      "請勿提供驗證碼。",
+      "網址中包含 ] 符號，但仍需進一步確認。",
+      "訊息中出現 } 符號，但不能單憑此判斷。",
+      'JSON 範例是 {"ok":true}。',
+      "陣列內容為 [1,2,3]。",
+      '對方貼出 {"a":[1,2]}，請不要直接執行。',
+    ]) {
+      expect(pattern.test(text), text).toBe(true);
+    }
   });
   it("instructs natural-language text without surrounding serialization debris", async () => {
     const prompt = await readFile(
@@ -177,6 +203,28 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
         },
       },
     });
+    const sentFormat = (body.text as { format: Record<string, unknown> })
+      .format;
+    expect(sentFormat.strict).toBe(true);
+    const sentEnvelope = (
+      (sentFormat.schema as typeof outputJsonSchema).properties.outcome as {
+        anyOf: Array<{ properties: Record<string, unknown> }>;
+      }
+    ).anyOf[0];
+    const sentFields = sentEnvelope.properties;
+    const sentSignal = sentFields.signals as {
+      items: { properties: Record<string, unknown> };
+    };
+    const sentRecommendations = sentFields.recommendations as {
+      items: Record<string, unknown>;
+    };
+    expect((sentFields.summary as { pattern: string }).pattern).toBe(
+      expectedTextTailPattern,
+    );
+    expect(
+      (sentSignal.items.properties.reason as { pattern: string }).pattern,
+    ).toBe(expectedTextTailPattern);
+    expect(sentRecommendations.items.pattern).toBe(expectedTextTailPattern);
     expect(JSON.stringify(body)).toContain("data:image/png;base64,");
     expect(JSON.stringify(body)).toContain("untrusted evidence");
     expect(transport).toHaveBeenCalledOnce();
