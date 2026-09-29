@@ -9,9 +9,19 @@ import {
   RISK_LEVELS,
 } from "../../../contracts/analysis";
 import { MAX_OUTPUT_TOKENS, type ServerConfig } from "../../config";
-import { AppError, schemaFailure } from "../../errors";
+import {
+  AppError,
+  schemaFailure,
+  type ProviderFailureDiagnostics,
+  type ProviderIncompleteReason,
+  type ProviderResponseStatus,
+} from "../../errors";
 import { checkAbort } from "../../deadline";
-import type { ScamAIProvider, ProviderResult } from "../provider";
+import type {
+  ProviderUsage,
+  ScamAIProvider,
+  ProviderResult,
+} from "../provider";
 
 // User-facing prose must not end with JSON serialization delimiters.
 const textTailPattern = "^[\\s\\S]*[^,，}\\]]$";
@@ -83,6 +93,47 @@ export const outputJsonSchema = object({
   },
 });
 const envelope = z.strictObject({ outcome: z.unknown() });
+function safeProviderStatus(status: unknown): ProviderResponseStatus {
+  switch (status) {
+    case "completed":
+    case "incomplete":
+    case "failed":
+    case "cancelled":
+    case "queued":
+    case "in_progress":
+      return status;
+    default:
+      return "other";
+  }
+}
+function safeIncompleteReason(
+  status: unknown,
+  reason: unknown,
+): ProviderIncompleteReason {
+  if (status !== "incomplete") return "none";
+  switch (reason) {
+    case "max_output_tokens":
+    case "max_messages":
+    case "content_filter":
+    case "steered":
+      return reason;
+    case undefined:
+    case null:
+      return "none";
+    default:
+      return "other";
+  }
+}
+function usageDiagnostics(
+  usage: ProviderUsage | undefined,
+): ProviderFailureDiagnostics {
+  return usage
+    ? {
+        providerInputTokens: usage.inputTokens,
+        providerOutputTokens: usage.outputTokens,
+      }
+    : {};
+}
 let prompt: Promise<string> | undefined;
 export async function loadPrompt(): Promise<string> {
   prompt ??= readFile(
@@ -159,28 +210,49 @@ export function createOpenAIProvider(
               outputTokens: response.usage.output_tokens,
             }
           : undefined;
-        if (
-          response.output.some(
-            (item) =>
-              item.type === "message" &&
-              item.content.some((c) => c.type === "refusal"),
-          )
-        )
+        const hasRefusal = response.output.some(
+          (item) =>
+            item.type === "message" &&
+            item.content.some((c) => c.type === "refusal"),
+        );
+        const outputTextPresent =
+          typeof response.output_text === "string" &&
+          response.output_text.length > 0;
+        if (response.status !== "completed")
+          throw schemaFailure("response_incomplete", undefined, {
+            providerResponseStatus: safeProviderStatus(response.status),
+            providerIncompleteReason: safeIncompleteReason(
+              response.status,
+              response.incomplete_details?.reason,
+            ),
+            providerOutputTextPresent: outputTextPresent,
+            ...usageDiagnostics(usage),
+          });
+        if (hasRefusal)
           return {
             outcome: { status: "insufficient_evidence", reason: "refusal" },
             usage,
           };
-        if (response.status !== "completed" || !response.output_text)
-          throw schemaFailure("response_incomplete");
+        if (!outputTextPresent)
+          throw schemaFailure("response_incomplete", undefined, {
+            providerResponseStatus: "completed",
+            providerIncompleteReason: "none",
+            providerOutputTextPresent: false,
+            ...usageDiagnostics(usage),
+          });
         let decoded: unknown;
         try {
           decoded = JSON.parse(response.output_text);
         } catch {
-          throw schemaFailure("output_json_parse");
+          throw schemaFailure(
+            "output_json_parse",
+            undefined,
+            usageDiagnostics(usage),
+          );
         }
         const parsed = envelope.safeParse(decoded);
         if (!parsed.success || !Object.hasOwn(parsed.data, "outcome"))
-          throw schemaFailure("envelope");
+          throw schemaFailure("envelope", undefined, usageDiagnostics(usage));
         return { outcome: parsed.data.outcome, usage };
       } catch (error) {
         if (error instanceof AppError) throw error;

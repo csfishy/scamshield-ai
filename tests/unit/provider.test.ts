@@ -49,12 +49,19 @@ const image = {
   sizeBytes: 28,
 };
 const expectedTextTailPattern = "^[\\s\\S]*[^,，}\\]]$";
-function result(text: string, status = "completed", refusal = false) {
+function result(
+  text: string,
+  status = "completed",
+  refusal = false,
+  options: { reason?: unknown; usage?: boolean } = {},
+) {
   return {
     id: "resp_test",
     object: "response",
     created_at: 0,
     status,
+    incomplete_details:
+      options.reason === undefined ? null : { reason: options.reason },
     model: MODEL,
     output: [
       {
@@ -69,7 +76,15 @@ function result(text: string, status = "completed", refusal = false) {
         ],
       },
     ],
-    usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150 },
+    ...(options.usage === false
+      ? {}
+      : {
+          usage: {
+            input_tokens: 100,
+            output_tokens: 50,
+            total_tokens: 150,
+          },
+        }),
   };
 }
 describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
@@ -290,6 +305,26 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
         .outcome,
     ).toEqual({ status: "insufficient_evidence", reason: "refusal" });
   });
+  it("classifies a non-completed refusal by response status", async () => {
+    const transport = vi.fn<typeof fetch>(async () =>
+      Response.json(
+        result("", "incomplete", true, { reason: "content_filter" }),
+      ),
+    );
+    await expect(
+      createOpenAIProvider(config, transport).analyze(image, context()),
+    ).rejects.toMatchObject({
+      schemaFailureStage: "response_incomplete",
+      providerDiagnostics: {
+        providerResponseStatus: "incomplete",
+        providerIncompleteReason: "content_filter",
+        providerOutputTextPresent: false,
+        providerInputTokens: 100,
+        providerOutputTokens: 50,
+      },
+    });
+    expect(transport).toHaveBeenCalledOnce();
+  });
   it.each([
     ["not json", "output_json_parse"],
     ["{}", "envelope"],
@@ -308,6 +343,22 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
         code: "analysis_failed",
         kind: "schema",
         schemaFailureStage: stage,
+        ...(stage === "response_incomplete"
+          ? {
+              providerDiagnostics: {
+                providerResponseStatus: "completed",
+                providerIncompleteReason: "none",
+                providerOutputTextPresent: false,
+                providerInputTokens: 100,
+                providerOutputTokens: 50,
+              },
+            }
+          : {
+              providerDiagnostics: {
+                providerInputTokens: 100,
+                providerOutputTokens: 50,
+              },
+            }),
       });
       expect(transport).toHaveBeenCalledOnce();
     },
@@ -322,6 +373,13 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
       code: "analysis_failed",
       kind: "schema",
       schemaFailureStage: "response_incomplete",
+      providerDiagnostics: {
+        providerResponseStatus: "incomplete",
+        providerIncompleteReason: "none",
+        providerOutputTextPresent: true,
+        providerInputTokens: 100,
+        providerOutputTokens: 50,
+      },
     });
     const controller = new AbortController();
     controller.abort();
@@ -332,5 +390,91 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
       }),
     ).rejects.toMatchObject({ code: "provider_unavailable" });
     expect(transport).toHaveBeenCalledOnce();
+  });
+  it.each([
+    ["max_output_tokens", "max_output_tokens"],
+    ["content_filter", "content_filter"],
+    ["max_messages", "max_messages"],
+    ["steered", "steered"],
+    ["PRIVATE_FUTURE_REASON", "other"],
+  ] as const)(
+    "allowlists incomplete reason %s as %s without retaining raw output",
+    async (reason, expected) => {
+      const transport = vi.fn<typeof fetch>(async () =>
+        Response.json(
+          result("PRIVATE PARTIAL OUTPUT", "incomplete", false, { reason }),
+        ),
+      );
+      let caught: unknown;
+      try {
+        await createOpenAIProvider(config, transport).analyze(image, context());
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toMatchObject({
+        code: "analysis_failed",
+        kind: "schema",
+        schemaFailureStage: "response_incomplete",
+        providerDiagnostics: {
+          providerResponseStatus: "incomplete",
+          providerIncompleteReason: expected,
+          providerOutputTextPresent: true,
+          providerInputTokens: 100,
+          providerOutputTokens: 50,
+        },
+      });
+      expect(JSON.stringify(caught)).not.toMatch(
+        /PRIVATE PARTIAL OUTPUT|PRIVATE_FUTURE_REASON/u,
+      );
+      expect(transport).toHaveBeenCalledOnce();
+    },
+  );
+  it("distinguishes completed-without-text and failed status", async () => {
+    for (const [status, text, expected] of [
+      ["completed", "", { status: "completed", present: false }],
+      ["failed", "PRIVATE PARTIAL", { status: "failed", present: true }],
+      ["future_status", "", { status: "other", present: false }],
+    ] as const) {
+      const transport = vi.fn<typeof fetch>(async () =>
+        Response.json(result(text, status)),
+      );
+      await expect(
+        createOpenAIProvider(config, transport).analyze(image, context()),
+      ).rejects.toMatchObject({
+        schemaFailureStage: "response_incomplete",
+        providerDiagnostics: {
+          providerResponseStatus: expected.status,
+          providerIncompleteReason: "none",
+          providerOutputTextPresent: expected.present,
+        },
+      });
+      expect(transport).toHaveBeenCalledOnce();
+    }
+  });
+  it("leaves usage unknown when an incomplete response has no usage", async () => {
+    const transport = vi.fn<typeof fetch>(async () =>
+      Response.json(
+        result("", "incomplete", false, {
+          reason: "max_output_tokens",
+          usage: false,
+        }),
+      ),
+    );
+    let caught: unknown;
+    try {
+      await createOpenAIProvider(config, transport).analyze(image, context());
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toMatchObject({
+      providerDiagnostics: {
+        providerResponseStatus: "incomplete",
+        providerIncompleteReason: "max_output_tokens",
+        providerOutputTextPresent: false,
+      },
+    });
+    expect(JSON.stringify(caught)).not.toMatch(
+      /providerInputTokens|providerOutputTokens/u,
+    );
   });
 });

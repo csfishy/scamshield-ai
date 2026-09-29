@@ -148,6 +148,25 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
       if (safe.kind === "schema") {
         event.schemaFailureStage = safe.schemaFailureStage;
         event.schemaFailureField = safe.schemaFailureField;
+        const diagnostics = safe.providerDiagnostics;
+        if (diagnostics) {
+          if (diagnostics.providerResponseStatus !== undefined)
+            event.providerResponseStatus = diagnostics.providerResponseStatus;
+          if (diagnostics.providerIncompleteReason !== undefined)
+            event.providerIncompleteReason =
+              diagnostics.providerIncompleteReason;
+          if (diagnostics.providerOutputTextPresent !== undefined)
+            event.providerOutputTextPresent =
+              diagnostics.providerOutputTextPresent;
+          if (
+            diagnostics.providerInputTokens !== undefined &&
+            diagnostics.providerOutputTokens !== undefined
+          ) {
+            event.inputTokens = diagnostics.providerInputTokens;
+            event.outputTokens = diagnostics.providerOutputTokens;
+            event.usageKnown = true;
+          }
+        }
       }
       if (
         [

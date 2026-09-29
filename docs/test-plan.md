@@ -20,6 +20,14 @@ Provider stub 只供測試注入，不提供 client 可觸發的 public debug �
 預設 CI 不讀真實 AI key、不呼叫付費模型；AI evaluation 由 B 明確執行，
 使用測試額度。既有 .NET ContractChecks 只覆蓋舊版，不代替新系統測試。
 
+Provider failure diagnostics 以 SDK transport stub 驗證 `incomplete` 的
+`max_output_tokens`、`content_filter`、未知 reason、completed 但缺少 output
+text，以及 failed／未知 status。測試同時確認 response failure 的既有 usage
+能進入 server telemetry，缺少 usage 時維持 unknown；JSON parse、provider
+outcome 與 structural-debris 路徑不得遺失已取得的 token。HTTP body 必須維持
+既有三欄錯誤契約，telemetry allowlist 不得輸出 raw output、incomplete object、
+summary、signal reason、recommendation、prompt、圖片或 secret。
+
 ## 2. API、圖片與 schema cases
 
 | ID | 情境 | 預期 | 關聯需求 |

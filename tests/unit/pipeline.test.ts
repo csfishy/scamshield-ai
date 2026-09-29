@@ -9,7 +9,7 @@ import {
 import { normalizeOutcome } from "../../lib/server/ai/normalize";
 import { providerOutcomeSchema } from "../../lib/server/ai/provider";
 import { analysisSchema } from "../../lib/contracts/analysis";
-import { AppError } from "../../lib/server/errors";
+import { AppError, schemaFailure } from "../../lib/server/errors";
 import { emitTelemetry, type AnalysisEvent } from "../../lib/server/telemetry";
 import { normal } from "../../fixtures/demo";
 import { png, request } from "../helpers/images";
@@ -403,6 +403,7 @@ describe("API validation, deadline, cancellation and single call", () => {
     });
     const analyze = vi.fn(async () => ({
       outcome: { ...outcome, summary: "PRIVATE SUMMARY }]," },
+      usage: { inputTokens: 123, outputTokens: 45 },
     }));
     const response = await createAnalyzeHandler({
       quota: allowedQuota,
@@ -418,6 +419,9 @@ describe("API validation, deadline, cancellation and single call", () => {
       failureKind: "schema",
       schemaFailureStage: "structural_debris",
       schemaFailureField: "summary",
+      usageKnown: true,
+      inputTokens: 123,
+      outputTokens: 45,
     });
     const log = vi.spyOn(console, "info").mockImplementation(() => {});
     emitTelemetry({
@@ -429,10 +433,13 @@ describe("API validation, deadline, cancellation and single call", () => {
       durationMs: 1,
       ...{
         output_text: "PRIVATE OUTPUT",
+        rawOutput: "PRIVATE RAW OUTPUT",
+        outputText: "PRIVATE OUTPUT TEXT",
         summary: "PRIVATE SUMMARY",
         signalReason: "PRIVATE SIGNAL",
         recommendation: "PRIVATE RECOMMENDATION",
         image: "PRIVATE IMAGE",
+        imageBase64: "PRIVATE BASE64",
         prompt: "PRIVATE PROMPT",
         apiKey: "PRIVATE KEY",
       },
@@ -450,6 +457,117 @@ describe("API validation, deadline, cancellation and single call", () => {
       schemaFailureStage: "envelope",
     });
     expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+  it.each([
+    [true, 100, 50],
+    [false, undefined, undefined],
+  ] as const)(
+    "keeps incomplete-response diagnostics server-only when usage is %s",
+    async (hasUsage, inputTokens, outputTokens) => {
+      const telemetry = vi.fn();
+      const response = await createAnalyzeHandler({
+        quota: allowedQuota,
+        config: () => config,
+        provider: () => ({
+          analyze: async () => {
+            throw schemaFailure("response_incomplete", undefined, {
+              providerResponseStatus: "incomplete",
+              providerIncompleteReason: "max_output_tokens",
+              providerOutputTextPresent: true,
+              ...(hasUsage
+                ? {
+                    providerInputTokens: 100,
+                    providerOutputTokens: 50,
+                  }
+                : {}),
+            });
+          },
+        }),
+        telemetry,
+      })(request(await png()));
+      expect(response.status).toBe(500);
+      const body = await response.text();
+      expect(JSON.parse(body)).toEqual({
+        error: {
+          code: "analysis_failed",
+          message: "目前無法產生有效分析，請換圖或稍後再試。",
+          retryable: false,
+        },
+      });
+      expect(body).not.toMatch(
+        /providerResponse|providerIncomplete|providerOutput|schemaFailure|usage|token/u,
+      );
+      expect(telemetry).toHaveBeenCalledOnce();
+      expect(telemetry.mock.calls[0][0]).toMatchObject({
+        failureKind: "schema",
+        schemaFailureStage: "response_incomplete",
+        providerResponseStatus: "incomplete",
+        providerIncompleteReason: "max_output_tokens",
+        providerOutputTextPresent: true,
+        usageKnown: hasUsage,
+        ...(hasUsage ? { inputTokens, outputTokens } : {}),
+      });
+    },
+  );
+  it("preserves usage on Provider JSON parse failure", async () => {
+    const telemetry = vi.fn();
+    const response = await createAnalyzeHandler({
+      quota: allowedQuota,
+      config: () => config,
+      provider: () => ({
+        analyze: async () => {
+          throw schemaFailure("output_json_parse", undefined, {
+            providerInputTokens: 321,
+            providerOutputTokens: 54,
+          });
+        },
+      }),
+      telemetry,
+    })(request(await png()));
+    expect(response.status).toBe(500);
+    expect(telemetry.mock.calls[0][0]).toMatchObject({
+      schemaFailureStage: "output_json_parse",
+      usageKnown: true,
+      inputTokens: 321,
+      outputTokens: 54,
+    });
+    expect(telemetry.mock.calls[0][0]).not.toHaveProperty(
+      "providerResponseStatus",
+    );
+  });
+  it("telemetry allowlist retains fixed diagnostics and strips raw Provider data", () => {
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    emitTelemetry({
+      requestId: crypto.randomUUID(),
+      status: 500,
+      failureKind: "schema",
+      schemaFailureStage: "response_incomplete",
+      providerResponseStatus: "incomplete",
+      providerIncompleteReason: "content_filter",
+      providerOutputTextPresent: true,
+      usageKnown: true,
+      inputTokens: 100,
+      outputTokens: 20,
+      durationMs: 1,
+      ...{
+        rawOutput: "PRIVATE RAW OUTPUT",
+        outputText: "PRIVATE OUTPUT TEXT",
+        incompleteDetails: { reason: "PRIVATE RAW REASON" },
+        summary: "PRIVATE SUMMARY",
+        signalReason: "PRIVATE SIGNAL",
+        recommendation: "PRIVATE RECOMMENDATION",
+        prompt: "PRIVATE PROMPT",
+        apiKey: "PRIVATE KEY",
+        imageBase64: "PRIVATE IMAGE",
+      },
+    });
+    expect(log).toHaveBeenCalledOnce();
+    const saved = String(log.mock.calls[0][0]);
+    expect(saved).toContain('"providerResponseStatus":"incomplete"');
+    expect(saved).toContain('"providerIncompleteReason":"content_filter"');
+    expect(saved).toContain('"providerOutputTextPresent":true');
+    expect(saved).not.toContain("PRIVATE");
     log.mockRestore();
   });
 });

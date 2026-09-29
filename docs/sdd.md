@@ -251,7 +251,10 @@ Secrets 不使用 NEXT_PUBLIC 前綴、不放 next.config 的公開 env mapping�
 
 Application event allowlist：requestId、deployment revision、promptVersion、
 內部 model ID、mode、status、errorCode、durationMs、imageByteCount、
-width／height、可用的 usage／estimatedCost。以有限類別記錄錯誤，
+width／height、可用的 usage／estimatedCost。`response_incomplete` 另只記錄
+固定列舉的 Provider status、固定列舉的 incomplete reason 與 output text
+是否存在；若 Provider response 已附 token usage，失敗路徑仍以整數記錄，
+缺少時保持 unknown。以有限類別記錄錯誤，
 禁止直接 log exception object、Provider response、prompt、filename、
 圖片內容／base64、完整 reason／summary、完整 IP 或使用者識別資訊。
 

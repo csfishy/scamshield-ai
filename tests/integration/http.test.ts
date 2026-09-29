@@ -98,9 +98,11 @@ beforeAll(async () => {
             {
               type: "output_text",
               text:
-                scenario === "malformed"
-                  ? "bad json"
-                  : JSON.stringify({ outcome }),
+                scenario === "incomplete_max_output"
+                  ? "PRIVATE PARTIAL OUTPUT"
+                  : scenario === "malformed"
+                    ? "bad json"
+                    : JSON.stringify({ outcome }),
               annotations: [],
             },
           ];
@@ -109,12 +111,18 @@ beforeAll(async () => {
         id: "resp_stub",
         object: "response",
         created_at: 0,
-        status: "completed",
+        status:
+          scenario === "incomplete_max_output" ? "incomplete" : "completed",
+        incomplete_details:
+          scenario === "incomplete_max_output"
+            ? { reason: "max_output_tokens" }
+            : null,
         output: [
           {
             id: "msg_stub",
             type: "message",
-            status: "completed",
+            status:
+              scenario === "incomplete_max_output" ? "incomplete" : "completed",
             role: "assistant",
             content,
           },
@@ -399,6 +407,7 @@ describe("real Next.js + SDK HTTP integration", () => {
     ["malformed", 500, "output_json_parse", undefined],
     ["text_debris", 500, "structural_debris", "signal_reason"],
     ["outcome_mismatch", 500, "provider_outcome", undefined],
+    ["incomplete_max_output", 500, "response_incomplete", undefined],
     ["normal", 200, undefined, undefined],
   ] as const)(
     "HTTP scenario %s exposes only public contract and emits safe stage",
@@ -429,8 +438,21 @@ describe("real Next.js + SDK HTTP integration", () => {
         });
         expect(event.schemaFailureStage).toBe(stage);
         expect(event.schemaFailureField).toBe(field);
+        if (name === "incomplete_max_output") {
+          expect(event).toMatchObject({
+            providerResponseStatus: "incomplete",
+            providerIncompleteReason: "max_output_tokens",
+            providerOutputTextPresent: true,
+            usageKnown: true,
+            inputTokens: 100,
+            outputTokens: 30,
+          });
+          expect(body).not.toMatch(
+            /providerResponse|providerIncomplete|providerOutput|usage|token/u,
+          );
+        }
         expect(JSON.stringify(event)).not.toMatch(
-          /要求提供驗證碼。\}\],|bad json|stub-only/u,
+          /要求提供驗證碼。\}\],|bad json|stub-only|PRIVATE PARTIAL OUTPUT/u,
         );
       } finally {
         scenario = "normal";
@@ -439,7 +461,7 @@ describe("real Next.js + SDK HTTP integration", () => {
   );
   it("application telemetry does not contain private provider output", () => {
     expect(serverLog).not.toMatch(
-      /private-provider-error|private-refusal|目前可讀內容|stub-only/,
+      /private-provider-error|private-refusal|目前可讀內容|stub-only|PRIVATE PARTIAL OUTPUT/,
     );
   });
 });

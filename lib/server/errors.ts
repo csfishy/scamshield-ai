@@ -49,6 +49,34 @@ export const SCHEMA_FAILURE_FIELDS = [
   "recommendation",
 ] as const;
 export type SchemaFailureField = (typeof SCHEMA_FAILURE_FIELDS)[number];
+export const PROVIDER_RESPONSE_STATUSES = [
+  "completed",
+  "incomplete",
+  "failed",
+  "cancelled",
+  "queued",
+  "in_progress",
+  "other",
+] as const;
+export type ProviderResponseStatus =
+  (typeof PROVIDER_RESPONSE_STATUSES)[number];
+export const PROVIDER_INCOMPLETE_REASONS = [
+  "max_output_tokens",
+  "max_messages",
+  "content_filter",
+  "steered",
+  "other",
+  "none",
+] as const;
+export type ProviderIncompleteReason =
+  (typeof PROVIDER_INCOMPLETE_REASONS)[number];
+export interface ProviderFailureDiagnostics {
+  providerResponseStatus?: ProviderResponseStatus;
+  providerIncompleteReason?: ProviderIncompleteReason;
+  providerOutputTextPresent?: boolean;
+  providerInputTokens?: number;
+  providerOutputTokens?: number;
+}
 export class AppError extends Error {
   constructor(
     public readonly code: ErrorCode,
@@ -56,6 +84,7 @@ export class AppError extends Error {
     public readonly retryAfter?: string,
     public readonly schemaFailureStage?: SchemaFailureStage,
     public readonly schemaFailureField?: SchemaFailureField,
+    public readonly providerDiagnostics?: Readonly<ProviderFailureDiagnostics>,
   ) {
     super(code);
   }
@@ -63,8 +92,16 @@ export class AppError extends Error {
 export function schemaFailure(
   stage: SchemaFailureStage,
   field?: SchemaFailureField,
+  providerDiagnostics?: Readonly<ProviderFailureDiagnostics>,
 ): AppError {
-  return new AppError("analysis_failed", "schema", undefined, stage, field);
+  return new AppError(
+    "analysis_failed",
+    "schema",
+    undefined,
+    stage,
+    field,
+    providerDiagnostics,
+  );
 }
 export function errorResponse(
   error: AppError,

@@ -1,7 +1,12 @@
 import "server-only";
 import { z } from "zod";
 import { errorCodeSchema } from "../contracts/analysis";
-import { SCHEMA_FAILURE_FIELDS, SCHEMA_FAILURE_STAGES } from "./errors";
+import {
+  PROVIDER_INCOMPLETE_REASONS,
+  PROVIDER_RESPONSE_STATUSES,
+  SCHEMA_FAILURE_FIELDS,
+  SCHEMA_FAILURE_STAGES,
+} from "./errors";
 const eventSchema = z
   .object({
     requestId: z.uuid(),
@@ -23,6 +28,9 @@ const eventSchema = z
       .optional(),
     schemaFailureStage: z.enum(SCHEMA_FAILURE_STAGES).optional(),
     schemaFailureField: z.enum(SCHEMA_FAILURE_FIELDS).optional(),
+    providerResponseStatus: z.enum(PROVIDER_RESPONSE_STATUSES).optional(),
+    providerIncompleteReason: z.enum(PROVIDER_INCOMPLETE_REASONS).optional(),
+    providerOutputTextPresent: z.boolean().optional(),
     durationMs: z.number().nonnegative(),
     imageByteCount: z.number().int().nonnegative().optional(),
     width: z.number().int().positive().optional(),
@@ -55,6 +63,53 @@ const eventSchema = z
         event.schemaFailureStage !== "structural_debris")
     )
       ctx.addIssue({ code: "custom", message: "Invalid schema failure field" });
+    const responseDiagnostics = [
+      event.providerResponseStatus,
+      event.providerIncompleteReason,
+      event.providerOutputTextPresent,
+    ];
+    if (
+      responseDiagnostics.some((value) => value !== undefined) &&
+      (event.failureKind !== "schema" ||
+        event.schemaFailureStage !== "response_incomplete")
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Invalid Provider response diagnostics",
+      });
+    if (
+      event.schemaFailureStage === "response_incomplete" &&
+      responseDiagnostics.some((value) => value === undefined)
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Incomplete Provider response diagnostics",
+      });
+    if (
+      event.providerIncompleteReason !== undefined &&
+      event.providerIncompleteReason !== "none" &&
+      event.providerResponseStatus !== "incomplete"
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Invalid Provider incomplete reason",
+      });
+    if (
+      event.providerResponseStatus === "completed" &&
+      event.providerOutputTextPresent !== false
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Completed response must be missing output text",
+      });
+    const tokenFields = [event.inputTokens, event.outputTokens];
+    if (
+      (event.usageKnown === true &&
+        tokenFields.some((value) => value === undefined)) ||
+      (tokenFields.some((value) => value !== undefined) &&
+        event.usageKnown !== true)
+    )
+      ctx.addIssue({ code: "custom", message: "Invalid usage diagnostics" });
   });
 export type AnalysisEvent = z.infer<typeof eventSchema>;
 // Runtime allowlist strips even accidental caller additions. Never log exceptions.
