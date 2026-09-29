@@ -19,8 +19,8 @@ const envSchema = z.object({
   AI_PROVIDER: z.literal("openai").optional(),
   AI_MODEL: z.literal(MODEL).optional(),
   AI_API_KEY: z.string().trim().min(1).optional(),
-  AI_TIMEOUT_MS: ms(15000, 15000),
-  ANALYSIS_TIMEOUT_MS: ms(20000, 20000),
+  AI_TIMEOUT_MS: ms(20000, 20000),
+  ANALYSIS_TIMEOUT_MS: ms(25000, 25000),
   PROMPT_VERSION: z.literal(PROMPT_VERSION).default(PROMPT_VERSION),
 });
 export type ServerConfig = {

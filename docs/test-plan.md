@@ -70,8 +70,12 @@ Provider stub 只供測試注入，不提供 client 可觸發的 public debug �
 | OPS-01 | 部署端存取限制／限流觸發 | 真正阻擋；不是只顯示警告或靠本機 Map |
 | OPS-02 | 支出告警／硬上限／撤銷 key／關閉 Remote | 確認各機制實際效果與操作者 |
 
-timeout unit test 使用可控 clock／stub，不讓每次 CI 等待 15 秒；
+timeout unit test 使用可控 clock／stub，不讓每次 CI 等待 20／25 秒；
 另在部署 smoke 實測真實 timeout 與平台 non-JSON 行為。
+
+`tests/unit/timeout.test.ts` 覆蓋 20s／25s 的 default、explicit、18s／25s、20s／22s 邊界，拒絕超上限、少於2s餘裕、零／負數／小數／非整數字串及極大值。fake timers 驗證 19,999ms 完成可正常回應並收尾、20s timeout 不重試且忽略晚到結果、前置處理耗時會縮短 Provider budget、API 25s 可中止尚未進 Provider 的工作。timeout 遙測必須 `usageKnown=false` 且無虛構 token；已進 Provider 但遠端是否停止未知時維持 `held_until_expiry`。既有 schema pattern、diagnostic 與 debris regression 必須持續通過。
+
+真實回歸每次獨立核准 calls／USD，離線測試不替代正式 latency／品質證據。只有兩個固定案例均無 timeout、HTTP200 且人工品質 PASS，才可將 timeout robustness 與文字可靠性 gate 記為 PASS；單例 timeout 不等於 pattern／prompt／debris FAIL。route maxDuration 維持30s。
 
 ## 4. Browser／PWA cases
 

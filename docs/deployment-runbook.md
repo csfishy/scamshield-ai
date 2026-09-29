@@ -94,7 +94,7 @@ Mock環境合法multipart `/analyze`回503 `provider_unavailable`；無效JSON�
 2. 確認 / 頁面與 /analyze 分別回 HTML／contract JSON，非 POST 正確拒絕。
 3. 合法 JPEG／PNG、接近 4 MiB 圖片、400／413／415／422 正確；
    signature-only 壞檔不得呼叫 AI。
-4. 驗證 API 20 秒 budget、Provider 15 秒 timeout、Client 25 秒與平台 30 秒。
+4. 驗證 API 25 秒 budget、Provider 20 秒 timeout、Client 25 秒與平台 30 秒。Provider 的有效 deadline 是 min(20 秒, API 剩餘時間減 2 秒)，前置處理時間不會額外加到 API 預算之外。Client 25 秒可能先於很晚的網路回應取消，但不會自動重送。
 5. 驗證 Provider 呼叫最多一次；分析完成／取消清理本機資源；Redis 租約按第 11 節處理，取消或無法確認 Provider 停止時保守保留至期限，不退日額度。
 6. 查 application logs 僅有 allowlist metadata；Client bundle 無 secrets。
 7. 查看實際 Provider usage 與成本控制，確認部署保護／限流真的阻擋。
@@ -229,7 +229,7 @@ Preview 先設 mock，確認受控存取確實攔截未授权請求，再在已�
 | 短期 POST 計數 | 滑動 60 秒；key 有 60 秒 TTL |
 | IP／全站日額度 | Redis `TIME` 換算 Asia/Taipei 00:00；key TTL 為下一個台北午夜加 1 小時，最長約 25 小時 |
 | 去重 receipt | 48 小時，防同一 operation 重複執行／扣次；不是重試 AI 的許可 |
-| 並行租約 | 預設 60 秒，允許 45–120 秒，涵蓋 20 秒 API deadline 與安全餘裕；唯一 ownership token；到期回收 |
+| 並行租約 | 預設 60 秒，允許 45–120 秒，涵蓋 25 秒 API deadline 與安全餘裕；唯一 ownership token；到期回收 |
 | 執行期控制鍵 | 不設 TTL；只有精確字串 `enabled` 允許新分析，缺少／其他值全部停用 |
 
 並行 `Retry-After` 按目前有效租約與目前設定上限，算到足夠名額到期的時間；部署下調上限時不能只看第一個租約。到時仍可能被其他新請求占用，這是可手動再試的等待提示，不是保證服務恢復或保留名額。
@@ -270,7 +270,9 @@ GET {scamshield:production:production-beta}:control:analysis-enabled
 
 ### 11.4 費用與必要觀察
 
-- Preview／Production 使用獨立 Provider 專案與憑證，限制可用模型／人員；保存最大 2400 output tokens、圖片 4 MiB／24M pixels、API20s／Provider15s、無自動 retry。
+- Preview／Production 使用獨立 Provider 專案與憑證，限制可用模型／人員；保存最大 2400 output tokens、圖片 4 MiB／24M pixels、API25s／Provider20s、無自動 retry。
+
+Timeout 部署檢查：`AI_TIMEOUT_MS=20000`、`ANALYSIS_TIMEOUT_MS=25000`，上限等於預設值，且 Provider + 2000 <= API。若平台仍顯式設定 15000／20000，新版 default 不會覆蓋它；先保持 AI 雙重 OFF，更新這兩個非秘密設定後重新部署，核對新部署的有效值。route `maxDuration=30` 不變，API 與平台間保留 5 秒；正常 Provider 結束後至少預留 2 秒給 normalization／lease release／回應。Redis release 仍有原本獨立 timeout；無法確認 Provider 已停止時不釋放 lease，等期限回收。增加 timeout 不增加 retry，未知 usage 不估成零；超時後的遠端運算／費用仍可能發生。
 - 圖片尺寸／細節、input／output tokens、當期模型價格影響成本；200 次是分析嘗試上限，不能換算成固定費用，也不能把歷史單次 US$0.001152 套用全部請求。
 - 人工檢查帳號的 spend alerts 與組織／專案 **Enforce a hard limit**。現行 OpenAI 官方文件說明 hard limit 達到已追蹤金額後讓受影響 API 回 429，但傳播不是即時，可能小幅超支；警報本身不阻擋。帳號可見功能、門檻、權限與實際效果均待確認，不寫成已啟用。[OpenAI spend limits](https://developers.openai.com/api/docs/guides/spend-limits)
 - 沿用 telemetry 觀察成功／錯誤比例、duration、限流／failure kind、是否進 Provider、model／promptVersion、取得時的 usage；缺 usage 是 unknown，不是 0 成本。再與 Provider Usage／billing、Vercel 及 Redis dashboard 用量交叉核對。

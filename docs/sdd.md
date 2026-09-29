@@ -185,13 +185,13 @@ promptVersion 作為內部 telemetry，不加入 public response。
 
 | 設定 | 初值 | 起算點 |
 | --- | --- | --- |
-| Provider timeout | 15,000 ms | 開始 Provider HTTP 呼叫 |
-| API budget | 20,000 ms | Route Handler 進入 |
+| Provider timeout | 20,000 ms | handler 進入 Provider 流程；SDK timeout 由 HTTP 呼叫起算 |
+| API budget | 25,000 ms | Route Handler 進入 |
 | Client timeout | 25,000 ms | 使用者提交、fetch 開始 |
 | Function maxDuration | 30 seconds | 平台 invocation |
 
-Provider 實際 timeout = min(15 秒, API 剩餘預算減 2 秒回應保留時間)；
-剩餘預算不足就回 503，不再開始付費呼叫。API deadline 20 秒到期時中止工作；
+Provider 實際 timeout = min(20 秒, API 剩餘預算減 2 秒回應保留時間)；
+剩餘預算不足就回 503，不再開始付費呼叫。API deadline 25 秒到期時中止工作；
 能回應則回 503。Client timeout 包含上傳時間，慢網路可能先取消，須實測。
 請求取消不保證 Provider 已停止計費，不宣稱「取消即免費」。
 
@@ -234,8 +234,8 @@ B 提供正常、假物流、假客服樣本。不能根據任意圖片猜測 fi
 | AI_PROVIDER | openai；remote 必填，採用確認／憑證待提供 | 否 |
 | AI_MODEL | gpt-4.1-mini-2025-04-14；remote 必填，真實評估待完成 | 否 |
 | AI_API_KEY | remote 必填 | 否 |
-| AI_TIMEOUT_MS | 15000 | 否 |
-| ANALYSIS_TIMEOUT_MS | 20000 | 否 |
+| AI_TIMEOUT_MS | 20000（上限相同） | 否 |
+| ANALYSIS_TIMEOUT_MS | 25000（上限相同；至少比 Provider 多 2000） | 否 |
 | CLIENT_TIMEOUT_MS | 25000 | 是，僅數值 |
 | maxDuration | route 設定 30 秒 | 非 secret，但不作業務 UI |
 | PROMPT_VERSION | 與 repository prompt 一致的版本 | 否 |

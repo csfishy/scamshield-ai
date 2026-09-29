@@ -107,8 +107,8 @@ npm run test:e2e
 | `AI_PROVIDER` | Remote 必填；目前只接受 `openai` |
 | `AI_MODEL` | Remote 必填；目前只接受 `gpt-4.1-mini-2025-04-14` |
 | `AI_API_KEY` | Remote 必填的 server secret；不可使用 `NEXT_PUBLIC_*` |
-| `AI_TIMEOUT_MS` | 選填，預設／上限 15000 |
-| `ANALYSIS_TIMEOUT_MS` | 選填，預設／上限 20000，須至少比 Provider timeout 多 2000 ms |
+| `AI_TIMEOUT_MS` | 選填，預設／上限 20000 |
+| `ANALYSIS_TIMEOUT_MS` | 選填，預設／上限 25000，須至少比 Provider timeout 多 2000 ms |
 | `PROMPT_VERSION` | 選填；目前固定為 `scam-analysis-v1` |
 
 Beta 必要設定詳見 [.env.example](.env.example) 與 [Runbook 第 11 節](docs/deployment-runbook.md#11-beta-設定與操作2026-09-29)。新版本缺少安全設定時不預設放行付費分析；Remote 需要部署啟用、可信 IP 設定、獨立 namespace、Redis 憑證、HMAC secret 及正確的執行期控制鍵。Google 表單／Email 是非秘密設定，仍以 server allowlist props 提供給頁面。不要將 secrets 改為 `NEXT_PUBLIC_*`。
@@ -132,6 +132,7 @@ Google表單只在使用者點選後開啟，可預填Request ID、版本與回�
 - 僅接受 `POST multipart/form-data`；`image` 為必要的單張 JPEG／PNG，`source` 可為 `image`／`screenshot`（預設 `image`），`language` 預設 `zh-TW`。`source` 與 `language` 是分析 metadata，不是自由文字訊息輸入。
 - 圖片上限 4 MiB，request body 上限 4,300,000 bytes；每邊最多 12,000 px、總像素最多 24,000,000，動畫或多 frame 圖片不接受。
 - Remote 流程為設定／來源 IP／短期防濫用 → 圖片驗證／重新編碼 → 原子取得日額度與租約、檢查執行期開關 → OpenAI Provider → strict normalization → JSON 回應。成功六欄結構不變。
+- Provider timeout 預設 20 秒、application deadline 25 秒、route maxDuration 30 秒。Provider 會依剩餘 API 預算縮短，保留至少 2 秒收尾；增加等待時間不是 retry，每個 request 仍最多呼叫 Provider 一次。既有 Production timeout 環境值須同步更新並重新部署。
 - 應用程式可控回應均為 JSON，包含 `Cache-Control: no-store` 與 `X-Request-Id`。錯誤依情況回 400／413／415／422／429／500／503；非 `POST` 回 405 並標示 `Allow: POST`。
 
 Vercel以`vercel.json`設定Next.js、`npm ci`與`npm run build`。每次部署分別記錄SHA、實際Node／npm、匿名存取及AI OFF結果，不把歷史部署或本機build當作新分支已發布。功能分支push不會觸發目前只監聽`main` push／PR的Backend CI；本輪未授權Production部署。
