@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import { collectBrowserErrors } from "../helpers/browser";
+import {
+  PRIVACY_CONTACT_MAILTO,
+  PUBLIC_PRIVACY_CONTACT_EMAIL,
+} from "../../lib/privacy";
 
 let browserErrors: string[];
 test.beforeEach(async ({ page }) => {
@@ -143,7 +147,7 @@ test("Beta privacy and unconfigured feedback remain available without uploading"
   await summary.focus();
   await page.keyboard.press("Enter");
   await expect(
-    page.getByText("回饋聯絡管道尚待管理者設定，目前無法提交回饋。"),
+    page.getByText("Google 表單尚未開放；本頁不會代為送出回饋。"),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: /開啟 Google 表單/ }),
@@ -151,6 +155,12 @@ test("Beta privacy and unconfigured feedback remain available without uploading"
   await expect(page.getByRole("link", { name: "使用 Email 聯絡" })).toHaveCount(
     0,
   );
+  await expect(
+    page.getByRole("link", { name: PUBLIC_PRIVACY_CONTACT_EMAIL }),
+  ).toHaveAttribute("href", PRIVACY_CONTACT_MAILTO);
+  await expect(
+    page.getByRole("link", { name: "隱私聯絡與刪除申請" }),
+  ).toHaveAttribute("href", "/privacy#contact");
   await page
     .getByRole("link", { name: "隱私說明", exact: true })
     .first()
@@ -163,6 +173,60 @@ test("Beta privacy and unconfigured feedback remain available without uploading"
   await expect(
     page.getByRole("button", { name: "顯示 Demo 結果" }),
   ).toBeVisible();
+  expect(analysisRequests).toBe(0);
+});
+
+test("privacy presents the public policy and copyable contact on mobile without upload", async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let analysisRequests = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/analyze") analysisRequests++;
+  });
+  await page.goto("/");
+  await expect(page.locator(".privacy-hint")).toContainText("信用卡");
+  await expect(page.locator(".data-notice")).toContainText(
+    "本工具為 Beta，可能誤判；低風險不代表安全。",
+  );
+  await page
+    .getByRole("link", { name: "隱私說明", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "隱私與使用限制" }),
+  ).toBeVisible();
+  await expect(page.getByText(/原則上自提交日起最長保存 90 天/)).toBeVisible();
+  await expect(page.getByText(/另行取得適當同意/)).toBeVisible();
+  const text = await page.locator("main").innerText();
+  expect(text).not.toMatch(/TBD|待確認|待填|尚待管理者|聯絡 Email 尚未提供/);
+  expect(text).toContain("不代表所有平台零留存");
+  expect(text).toContain("不代表完全匿名");
+  expect(text).toContain("防濫用日誌可能包含輸入與輸出");
+  expect(text).toContain("法律或安全需要等例外可能保留更久");
+  expect(text).toContain("不代表網站已提供自動刪除功能");
+  await expect(
+    page.getByRole("link", { name: "聯絡管理者／申請刪除" }),
+  ).toHaveAttribute("href", PRIVACY_CONTACT_MAILTO);
+  await expect(page.locator("#contact")).toContainText(
+    PUBLIC_PRIVACY_CONTACT_EMAIL,
+  );
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const copy = page.getByRole("button", { name: "複製公開聯絡 Email" });
+  await copy.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByText("已複製公開聯絡 Email", { exact: true }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    PUBLIC_PRIVACY_CONTACT_EMAIL,
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
   expect(analysisRequests).toBe(0);
 });
 

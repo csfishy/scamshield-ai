@@ -1,7 +1,7 @@
 # ScamShield AI 開發、遷移與部署手冊
 
-- 版本：2.2｜2026-09-29
-- 狀態：第 9–10 節與 [第一階段本機檢核](public-beta-readiness.md) 保留歷史證據；第 11–12 節為現行操作依據。已授權的功能分支／Preview／免費隔離 Redis／Google 表單進度見 [第二階段驗收](preview-acceptance-2026-09-29.md)；付費 AI、Production 與公開分享仍待核准
+- 版本：2.3｜2026-09-29
+- 狀態：第9–10節及第一階段快照保留歷史。Production非AI已部署，正式HTTP runtime gate有獨立證據；本輪只在`codex/privacy-and-final-gates`更新隱私與驗收準備，禁止Production部署、修改AI gates或真實AI呼叫。當次結果見[Privacy／Final Gates](privacy-final-gates-2026-09-29.md)
 - Owner：B（初始化／部署），A（前端／PWA 更新）
 - 配套：[SDD](sdd.md)、[測試與 gate](test-plan.md)、[API v2](api-contract.md)
 
@@ -75,7 +75,7 @@ AI 基礎設定見 [SDD 第 10 節](sdd.md#10-環境設定與可觀測性)；Bet
 
 - Development 預設 mock；Remote 本機測試使用未提交的 .env.local。
 - Preview 預設 mock；受控整合 Preview 明確改 remote，使用測試 key／額度。
-- Production 只有完成 gate 才設 remote。
+- Production可以保持remote adapter配置但以`ANALYSIS_ENABLED=false`及runtime `disabled`阻止AI；目前正是這個安全狀態。兩gate啟用／真實分析需另外完成授權與gate，不能把remote模式字樣當AI已開。
 - 正式 key 不提供不受信任分支／fork 的 Preview，避免任意部署程式讀取。
 - AI_API_KEY／AI_MODEL／AI_PROVIDER 只在 Server 可用；Client 僅取得模式與 timeout。
 - .env.example 已改為新設定與空 key；不可將真實 key 寫入此檔。
@@ -84,7 +84,7 @@ AI 基礎設定見 [SDD 第 10 節](sdd.md#10-環境設定與可觀測性)；Bet
 
 Remote 缺 key／模型或設定非法 → 顯式失敗，不退回 Mock。
 UI 顯示 Demo 時必須使用 fixtures 並告知未執行分析。
-Mock 環境 /analyze 回 503，避免誤用真實 API。
+Mock環境合法multipart `/analyze`回503 `provider_unavailable`；無效JSON會先被request驗證拒絕400，不能把所有Mock輸入都當503。
 
 ## 5. Preview 與發布前檢查
 
@@ -125,6 +125,8 @@ A 在 implementation 中完成：
    不把 Next.js 所有 navigation／RSC response 一律 cache-first。
 7. 不快取 /analyze、user upload、analysis result、Provider request。
 8. Demo 可離線操作以「已成功預載」為前提，首次離線不保證可用。
+
+完整真iPhone Safari／安裝PWA、更新、離線、popup返回、多分頁與證據模板見[iPhone／PWA驗收](iphone-pwa-acceptance.md)。桌面responsive或Playwright不能代替實機；沒有舊worker來源裝置就保留遷移NOT_RUN。
 
 實際 worker 方案由 A 設計並在測試報告附版本；
 本文不是要求現在執行 unregister／清除使用者儲存。
@@ -204,7 +206,7 @@ Preview 先設 mock，確認受控存取確實攔截未授权請求，再在已�
 
 ## 11. Beta 設定與操作（2026-09-29）
 
-本節是操作文件，**範例不代表已執行**。第一階段未建立遠端資源；第二階段已授權功能分支 commit／push、Preview 部署、免費獨立 Redis 與 Google 表單作業，實際執行紀錄見 [第二階段驗收](preview-acceptance-2026-09-29.md)。真實 AI、Production 操作與公開分享未授權；第 9–10 節舊 SHA 的 PASS 不適用新部署。
+本節是操作文件，**範例不代表本輪授權或已執行**。第一、二階段結果維持原紀錄；Production非AI已在後續同SHA驗收。現用Production namespace為`production-beta`，Redis為獨立資源，主鍵disabled。這次Privacy分支不修改Production Vercel／Redis設定及資料、不重新部署、不呼叫AI；第9–10節舊SHA的PASS不套用新部署。
 
 ### 11.1 設定順序與隔離
 
@@ -255,16 +257,16 @@ GET {scamshield:preview:scamshield}:control:analysis-enabled
 SET {scamshield:preview:scamshield}:control:analysis-enabled enabled
 ```
 
-正式事故急停必須先確認目前使用的是 Production 專用 Redis、namespace 与目標鍵；下例只適用 namespace=`scamshield`：
+正式事故急停必須先確認目前使用的是Production專用Redis、namespace與目標鍵；下例對應已核對的namespace=`production-beta`，只是操作參考，本輪不執行：
 
 ```text
-SET {scamshield:production:scamshield}:control:analysis-enabled disabled
-GET {scamshield:production:scamshield}:control:analysis-enabled
+SET {scamshield:production:production-beta}:control:analysis-enabled disabled
+GET {scamshield:production:production-beta}:control:analysis-enabled
 ```
 
 核對新合法 HTTP POST 回 `503 analysis_disabled` 且 Provider call 沒增加；同時確認 Demo／回饋可用。Redis 失聯時應由 fail-closed 阻擋新分析；可另設 `ANALYSIS_ENABLED=false` 重新部署。若已出現不受控 Provider 使用，依既有授權撤銷／限制獨立 Provider 憑證。這些操作不保證撤回已送出的請求或費用。
 
-恢復前記錄事故、檢查來源／成本／Redis狀態、補齊故障測試、確認目前日額度與有效租約，不刪 key 清零。重新獲准後才把**相同已確認環境**控制鍵設 `enabled`，先少量 smoke，再核對 usage／日誌。本階段主 Preview 控制鍵保持 `disabled`，隔離測試只操作隨機 test namespace；Production 與任何付費呼叫仍需另行核准。
+恢復前記錄事故、檢查來源／成本／Redis狀態、補齊故障測試、確認目前日額度與有效租約，不刪key清零。只有重新獲准後才把**相同已確認環境**控制鍵設enabled並有限量smoke。本輪Production部署gate=false、runtime=disabled，均不可改動。原Preview Redis已在後續資源更替中刪除，不能直接沿用其範例憑證或宣稱仍可連線；任何新環境／付費AI都另行授權。
 
 ### 11.4 費用與必要觀察
 
@@ -278,13 +280,17 @@ GET {scamshield:production:scamshield}:control:analysis-enabled
 
 Google 表單公開 URL、三個 `entry.<digits>` 與 Email／build 設定詳 [.env.example](../.env.example)，外部表單管理清單見 [Beta 檢核](public-beta-readiness.md#2-google-表單設定)。頁面每次 server render 讀取 allowlist 設定，不把整份 env 給 client。Vercel env 修改需新部署；只有 Redis runtime key 的变更可立即影響後續 admission，不需 rebuild。App build identifier 缺少時不捏造 revision。
 
+公開Privacy聯絡`cs.sakana@gmail.com`及90天回饋政策由`lib/privacy.ts`集中維護，是使用者正式指定的公開資訊；`FEEDBACK_CONTACT_EMAIL`仍是可選備用聯絡設定。修改公開常量／頁面需要build與後續另行授權部署；本機PASS不代表舊Production已生效。Google表單說明與人工90天清理／刪除流程見[Privacy operations](privacy-operations.md)，Google回覆不由本應用自動清理。linked Sheets／CSV不因刪Forms回覆或unlink自動消失，管理者需處理每一份受管副本。
+
+本輪Google描述已在使用者明確核准後更新，08:19 UTC匿名GET200確認90天／公開Email／刪除與長期同意；沒有新增回覆、題目或存取設定變動。這是外部描述對齊PASS，不是自動清理已上線或整體Feedback gate已PASS。本機Privacy回歸已通過，Production網站部署仍待另行核准；當次證據見[Privacy／Final Gates](privacy-final-gates-2026-09-29.md)。
+
 回復需同步檢查程式、公開契約、PWA、mode、啟用變數、Redis namespace／key、Provider 憑證與費用設定；rollback 不會自動回復 Redis 資料或控制鍵。舊 UI 遇新未知 code 應安全顯示 fallback，禁止自動重新送出；要在已安裝舊 PWA 實測後才視為相容。
 
 不要回復成缺少限額保護的公開 Remote。必要時先停用真分析、維持 Demo／回饋可用，待受控驗收後恢復。IP 限流不能證明抵禦 VPN輪換、分散bot或DDoS；全站配額可能被惡意耗盡，更大規模分享需評估平台防護／WAF／server驗證CAPTCHA。
 
 ## 12. Preview 驗收工具與版本核對
 
-本節工具需對確切環境執行，結果寫入獨立驗收紀錄。第二階段已授權免費隔離 Redis 寫入與 Preview 部署，但沒有付費 AI 授權；主 Preview 部署設定及 Redis 控制鍵均應保持 AI 停用。Redis 初始化 `disabled` 只證明該資源鍵值，不能冒稱尚未部署的應用已採用它。
+本節保留第二階段工具的使用方法；那次免費Redis／Preview授權不是每個新回合的操作許可。工具每次都須對確切已授權環境執行並另記結果；舊Preview Redis已刪除。本輪Privacy分支不跑遠端寫入、重做Production runtime切換或付費AI。單獨Redis GET disabled也不代表部署已使用該資源；正式HTTP與逐筆遙測證據分開記錄。
 
 ### 12.1 Windows 與 Vercel 的 Node／npm
 

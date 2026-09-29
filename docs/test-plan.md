@@ -1,7 +1,7 @@
 # ScamShield AI 測試與驗收計畫
 
-- 版本：2.2｜2026-09-29
-- 狀態：新增 Beta 回饋／額度／急停與匿名 AI OFF 驗收。歷史 A+B 證據保留於 [B 進度](backend-progress.md)，231 tests／19 E2E 保留於 [第一階段本機快照](public-beta-readiness.md)；新增工具與已授權 Preview／免費隔離整合的結果另記 [第二階段驗收](preview-acceptance-2026-09-29.md)
+- 版本：2.3｜2026-09-29
+- 狀態：新增90天回饋／公開Privacy聯絡回歸及真iPhone人工清單；本輪數量與實跑結果見[Privacy／Final Gates](privacy-final-gates-2026-09-29.md)。第一階段231 tests／19 E2E、第二階段及Production非AI證據各自保留，不追溯改寫
 - Owners：B（API／AI）、A（UI／PWA）、產品（人工標註）、企劃（實機展示）
 - 規範：[API contract v2](api-contract.md)、[SDD](sdd.md)
 
@@ -94,6 +94,8 @@ timeout unit test 使用可控 clock／stub，不讓每次 CI 等待 15 秒；
 | DEPLOY-05 | 回復上一部署／退回舊版 | 按 runbook 驗證 API／模式／service worker |
 
 無法取得真實裝置時記錄「未驗證」，不得用桌面模擬器宣稱手機已驗收。
+
+逐步真iPhone Safari／PWA安裝、AI OFF圖片、外部表單返回、舊worker更新、離線／多分頁與結果模板見[iPhone／PWA acceptance](iphone-pwa-acceptance.md)。當前gate仍NOT_RUN；本輪只準備人工流程。
 
 ## 5. AI 評估集與人工標註
 
@@ -231,3 +233,31 @@ p95 樣本少時列全部耗時與樣本量，不宣稱具有統計代表性。
 | STAGE-02 | Vercel build／GitHub workflow | 保存確切 SHA、build log 版本；feature branch push 不觸發 Backend workflow 就列 NOT_RUN |
 
 命令與安全邊界見 [Runbook §12](deployment-runbook.md#12-preview-驗收工具與版本核對)，實際結果見 [第二階段 Preview 驗收](preview-acceptance-2026-09-29.md)。AI OFF 的 `provider_unavailable` 不證明 Redis 控制鍵，也不以簽入帳號填表成功代替匿名表單驗收。
+
+## 11. Privacy與最終gates分支回歸
+
+本節是驗收要求，不預報測試數量或PASS。公開政策以[Privacy operations](privacy-operations.md)及`lib/privacy.ts`為準；本輪在功能分支完成程式與本機測試，不部署Production、調整AI gates或呼叫真Provider。
+
+本輪已實跑：Node24.19.0／npm12.0.2；typecheck、lint（排除不屬本輪的`deliverables/**`）、14files／338tests（含17HTTP）、build、bundle37files／0markers、20E2E（9 Mock/backend＋11 Remote UI）通過。E2E首次有1項`ERR_NO_BUFFER_SPACE`失敗，未改程式、相同命令重跑20項通過；原始失敗與重跑都保留於[本輪紀錄](privacy-final-gates-2026-09-29.md)，不將它改寫為從未失敗。Google描述對齊另經真匿名GET200確認，沒有本輪新表單送出；不由本機stub推定外部PASS。
+
+| ID | 情境 | 必要斷言／層級 |
+| --- | --- | --- |
+| PRIV-90-01 | Privacy頁政策 | 明確最長90天、到期刪除或去識別、較長期案例另取適當同意；render／E2E |
+| PRIV-90-02 | 公開聯絡 | 精確`cs.sakana@gmail.com`，Privacy問題、資料刪除／Beta問題用途可見；render／E2E |
+| PRIV-90-03 | mailto／複製 | 正確地址及編碼主旨`ScamShield Privacy / Data Request`，不帶正文／附件／IP；可複製、可鍵盤操作；unit／E2E |
+| PRIV-90-04 | 舊占位文字 | 新公開頁沒有舊保存／聯絡TBD或待確認占位；歷史驗收文件可保留原始缺項，不由snapshot測試抹除；render／E2E |
+| PRIV-90-05 | 各服務保留區分 | 應用／Redis／OpenAI／部署日誌／Google分層，不宣稱所有平台零留存；render |
+| PRIV-90-06 | Redis敘述 | HMAC降低直接識別但不是完全匿名，不稱原始IP入key／一般log；render＋來源檢查 |
+| PRIV-90-07 | Provider敘述 | `store:false`僅相應Response儲存行為；防濫用／安全保留另述、不稱已ZDR；render＋adapter不變核對 |
+| PRIV-90-08 | 回饋UI政策一致 | 首頁／成功／錯誤可達Privacy聯絡，90天文案與集中常量一致；unit／E2E |
+| PRIV-90-09 | 首頁告知與連結 | Privacy link可達；姓名／電話／帳號／信用卡／OTP遮蔽與雲端AI、Beta誤判／低風險限制清楚；E2E |
+| PRIV-90-10 | 錯誤回饋可操作 | AI OFF／quota錯誤仍能找Privacy聯絡、複製Request ID、回饋不需成功分析；E2E |
+| PRIV-90-11 | 公開Email非secret | Email來自公開常量，不依server-only秘密env；允許出現在public bundle，秘密仍不得；unit／bundle |
+| PRIV-90-12 | Email不流入分析 | 公開聯絡Email不加入Redis命令／AI payload／分析API契約；本機Provider替身及payload檢查，不呼叫真AI |
+| PRIV-90-13 | 外部政策對齊 | 真Google說明的90天／Email／刪除政策由獨立外部紀錄確認；本機route stub不代替；人工 |
+| PRIV-90-14 | 90天人工操作 | Forms、linked Sheets、exports均有期限／刪除流程；無自動刪除引擎，不以文件PASS冒充清理已執行；文件覆核 |
+| PRIV-90-15 | 部署gate區分 | 本機實作／測試PASS仍需另授權部署與匿名Privacy頁確認；Production `PRIVACY_COMPLETENESS`不提前PASS |
+
+執行`npm run typecheck`、`npm run lint`、`npm test`、`npm run build`、`npm run verify:bundle`及相關`npm run test:e2e`，另作diff check與secrets scan。Email為本輪明確授權的公開產品資訊，不把它當秘密誤報；Redis／HMAC／Provider憑證仍嚴格檢查。unit／integration／E2E數量以實際runner輸出記錄，不把同一批測試重複相加。
+
+Production保持`ANALYSIS_ENABLED=false`及runtime `disabled`。本輪不因手機流程準備或品質計畫新增真實AI呼叫，`AI_QUALITY_GATE`／`IPHONE_PWA_ACCEPTANCE`維持NOT_RUN；有限AI計畫只能作下一輪明確calls／美元預算核准的輸入，不降低第6節品質門檻。

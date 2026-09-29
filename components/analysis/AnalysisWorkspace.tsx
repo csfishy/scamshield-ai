@@ -470,9 +470,11 @@ export function AnalysisWorkspace({
 
             <p className="privacy-hint">
               <span aria-hidden="true">!</span>
-              上傳前請先遮住不必要的姓名、電話、帳號、OTP 驗證碼與其他敏感資訊。
+              上傳前請先遮住不必要的姓名、電話、帳號、信用卡、OTP
+              驗證碼與其他敏感資訊。
             </p>
             <div className="data-notice" role="note">
+              <p>本工具為 Beta，可能誤判；低風險不代表安全。</p>
               <p>
                 服務記錄必要技術資料（問題編號、狀態、耗時及取得時的使用量）；IP
                 會轉換為代碼，供 Upstash Redis

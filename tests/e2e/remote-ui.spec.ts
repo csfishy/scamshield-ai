@@ -2,6 +2,10 @@ import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import { fakeDelivery } from "../../fixtures/demo";
 import { collectBrowserErrors } from "../helpers/browser";
+import {
+  PRIVACY_CONTACT_MAILTO,
+  PUBLIC_PRIVACY_CONTACT_EMAIL,
+} from "../../lib/privacy";
 
 let browserErrors: string[];
 test.beforeEach(async ({ page }) => {
@@ -133,6 +137,9 @@ test("real result offers safe feedback, copyable Request ID and no preview uploa
   let requests = 0;
   await page.route("**/analyze", async (route) => {
     requests++;
+    expect(route.request().postData()).not.toContain(
+      PUBLIC_PRIVACY_CONTACT_EMAIL,
+    );
     await new Promise((resolve) => setTimeout(resolve, 200));
     await route.fulfill({
       status: 200,
@@ -169,6 +176,13 @@ test("real result offers safe feedback, copyable Request ID and no preview uploa
   expect(url.searchParams.get("entry.102")).toBe("test-beta+09/29");
   expect(url.searchParams.get("entry.103")).toBe("判斷可能有誤");
   expect(url.href).not.toMatch(/base64|remote-test\.png|screenshot|riskScore/);
+  expect(url.href).not.toContain(PUBLIC_PRIVACY_CONTACT_EMAIL);
+  await expect(
+    page.getByRole("link", { name: "隱私聯絡與刪除申請" }).first(),
+  ).toHaveAttribute("href", "/privacy#contact");
+  await expect(
+    page.getByRole("link", { name: PUBLIC_PRIVACY_CONTACT_EMAIL }).first(),
+  ).toHaveAttribute("href", PRIVACY_CONTACT_MAILTO);
   await expect(form).toHaveAttribute("rel", "noopener noreferrer");
   await expect(form).toHaveAttribute("referrerpolicy", "no-referrer");
   await expect(
@@ -238,6 +252,15 @@ for (const [code, status, message] of [
     const url = new URL((await form.getAttribute("href"))!);
     expect(url.searchParams.get("entry.101")).toBe(feedbackRequestId);
     expect(url.searchParams.get("entry.103")).toBe("操作問題");
+    const contact = page
+      .locator(".analysis-error")
+      .getByRole("link", { name: "隱私聯絡與刪除申請" });
+    await expect(contact).toHaveAttribute("href", "/privacy#contact");
+    await expect(
+      page
+        .locator(".analysis-error")
+        .getByRole("link", { name: PUBLIC_PRIVACY_CONTACT_EMAIL }),
+    ).toHaveAttribute("href", PRIVACY_CONTACT_MAILTO);
     if (code === "daily_quota_exceeded") {
       await page.screenshot({
         path: "test-results/beta-mobile.png",

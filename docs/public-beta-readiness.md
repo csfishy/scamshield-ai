@@ -1,8 +1,30 @@
-# Public Beta Readiness — 第一階段本機快照（2026-09-29）
+# Public Beta Readiness — 目前狀態與歷史快照
+
+## 目前隱私與最終 gates 分支（2026-09-29）
+
+目前工作分支為`codex/privacy-and-final-gates`，基於已核對的`origin/main`／Production SHA `5a788a91f7c934667cb8f216bcc393bd164084dd`。使用者已決定：回饋最長90天、刪除或去識別、長期案例另取得適當同意；公開聯絡／刪除Email為 **cs.sakana@gmail.com**。這些資訊不再是BLOCKED_USER_INPUT，但本分支沒有Production部署授權，不能宣稱線上舊頁已更新。
+
+本輪實際命令、測試數量、外部表單對齊、Git與最終安全核對集中記於[Privacy／Final Gates 2026-09-29](privacy-final-gates-2026-09-29.md)。[Privacy操作](privacy-operations.md)說明90天人工清理、Sheets／匯出副本及刪除申請；[iPhone／PWA清單](iphone-pwa-acceptance.md)等待真機結果；[有限Production AI計畫](production-ai-quality-plan.md)只準備素材與程序，calls／USD尚待核准。以下狀態與第1–8節的**第一階段歷史**不同：
+
+| 項目 | 現況／範圍 |
+| --- | --- |
+| Production安全基準 | SHA `5a788a9…`、`dpl_3fVJ2VKFGEF4mGkYxRhkYzH65sSK` READY；canonical匿名可用；`ANALYSIS_ENABLED=false`、主runtime=`disabled`／TTL=-1；本輪不啟用AI |
+| REDIS_INTEGRATION | PASS（既有Production資源隔離21checks／627commands證據）；不是本輪重跑 |
+| PRODUCTION_HTTP_REDIS_RUNTIME_GATE | PASS（先前同SHA runtime-only新部署與逐筆遙測）；本輪保持雙層OFF、不重做切換 |
+| PRODUCTION_HTTP_RATE_LIMIT | NOT_RUN；先前因兩gate同開可能使其他公開訪客觸發Provider而停止，沒有用standalone測試冒充HTTP429 |
+| FEEDBACK_EXTERNAL_ACCEPTANCE | PARTIAL；本輪Google描述更新後匿名GET200（08:19 UTC）已確認90天／Email／刪除／長期同意；沒有新送出，歷史導覽根因未定及iPhone未驗仍保留 |
+| LOCAL_PRIVACY_IMPLEMENTATION | PASS；Node24.19.0／npm12.0.2，typecheck、lint、14files／338tests（含17HTTP）、build、bundle37files／0markers、20E2E通過；完整命令與首輪E2E失敗／同命令重跑證據見本輪紀錄 |
+| PRIVACY_COMPLETENESS | **PARTIAL／PENDING_DEPLOYMENT**：政策、本機實作／測試及Google描述對齊已完成；管理者人工清理仍需交接，Production網站須另獲授權部署並匿名確認後才能PASS |
+| IPHONE_PWA_ACCEPTANCE／AI_QUALITY_GATE | NOT_RUN；只有人工清單／下一階段計畫，不做真機代跑或付費AI |
+| PRODUCTION_ACCEPTANCE／PUBLIC_BETA | PARTIAL／NOT_READY；本分支完成不等於Production新版、品質或公開核准 |
+
+原始Production非AI證據保存在當時ignored `.tools/production-release-2026-09-29.md`與`.tools/production-non-ai-final-acceptance-2026-09-29.md`；這是本機證據路徑，不假裝已提交到repository。當時5筆自有分析請求逐筆遙測Provider=0；不是Provider整個帳戶歷史用量，也不代表本輪有呼叫。
+
+## 第一階段本機快照（歷史；2026-09-29）
 
 本文件保存**第一階段本機交付時**的集中驗收快照，下文「本輪」均指該階段；原始 231 項測試、19 項 E2E 及 NOT_RUN 不追溯改寫。**功能完成、本機測試通過、Preview 通過、Production 通過與可以公開 Beta 是不同狀態。**第一階段只做本機程式、離線自動化與文件，未完成的外部項目均為 NOT_RUN／BLOCKED，不由歷史 PASS 推定通過。
 
-其後使用者已授權功能分支 commit／push、Preview 部署、免費獨立 Redis 與 Google 表單作業；**目前進度以 [第二階段 Preview 驗收](preview-acceptance-2026-09-29.md) 為準**。該授權不包含真實 AI 費用、Production 發布或公開分享 Beta。本文件的人工檢核清單仍適用，但未勾选項目與狀態是第一階段快照。
+第二階段曾授權功能分支commit／push、Preview、免費Redis與Google表單，歷史結果保留於[Preview驗收](preview-acceptance-2026-09-29.md)。其後另經授權完成Production非AI驗收；最新範圍以上方目前分支段落為準，不用本節歷史授權／未勾選清單否定後來可追溯證據。
 
 ## 基準與可追溯性
 
@@ -149,6 +171,8 @@ npm run test:redis
 
 ## 5. 隱私與聯絡資訊
 
+本節以下是第一階段缺項快照。2026-09-29後續使用者已正式指定90天與cs.sakana@gmail.com，現行政策及部署界線改見[Privacy操作](privacy-operations.md)及本文件最上方目前狀態；不回填修改當時BLOCKED結果。
+
 **人工完整性驗收：BLOCKED。** 網站提供Beta標示、上傳前傳輸告知及 `/privacy`；選圖與預覽不先上傳。上傳前提醒遮蔽非必要姓名、電話、帳號、OTP。結果固定說明：「本工具提供詐騙風險提示，可能誤判。低風險不代表安全，請勿僅依本結果付款或提供個人資料。」分數不是經校準機率；未實作網址／银行／官方身分查證不宣稱已查證。
 
 | 層次 | 已知設計／政策來源 | 公開前仍需填寫／確認 |
@@ -196,7 +220,7 @@ npm run test:redis
 
 IP限制只能降低一般濫用，不能代表已抵禦VPN輪換、分散式bot或DDoS。全站配額能限制消耗，也可能被惡意耗盡。更大規模分享前，再依流量與濫用評估平台防護、WAF或具伺服器端驗證CAPTCHA；本輪不新增會員、付費機制或複雜反機器人系統。
 
-第一階段交付時列出的後續核准順序如下；第 1 項及第 2 項中的免費隔離環境／表單部分現已取得授權，執行結果另記第二階段文件。付費 AI 仍需明確 calls／美元額度，Production 與公開分享仍待核准：
+第一階段交付時列出的後續核准順序如下，僅保留當時安排。後來Preview／Production非AI操作另經授權並有分階段證據，不將這份歷史清單解讀為現在仍未部署。新的付費AI仍需明確calls／美元額度，本輪隱私分支Production發布及公開分享另待核准：
 
 1. 功能分支commit／push與Preview部署。
 2. 隔離環境與有限次付費AI驗收（明確calls／美元額度）。

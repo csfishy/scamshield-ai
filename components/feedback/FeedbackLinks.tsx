@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import {
+  FEEDBACK_RETENTION_DAYS,
+  PRIVACY_CONTACT_MAILTO,
+  PUBLIC_PRIVACY_CONTACT_EMAIL,
+} from "@/lib/privacy";
+import {
   buildFeedbackMailto,
   buildFeedbackUrl,
   validRequestId,
@@ -98,9 +103,14 @@ export function FeedbackLinks({
             <CopyValue value={config.contactEmail} label="Email" />
           </>
         )}
-        {!formUrl && !mailto && (
-          <p>回饋聯絡管道尚待管理者設定，目前無法提交回饋。</p>
-        )}
+        <p className="muted">
+          表單回饋原則上最長保存 {FEEDBACK_RETENTION_DAYS} 天。
+          <a href="/privacy#contact">隱私聯絡與刪除申請</a>：
+          <a className="break-anywhere" href={PRIVACY_CONTACT_MAILTO}>
+            {PUBLIC_PRIVACY_CONTACT_EMAIL}
+          </a>
+          。
+        </p>
         <p className="muted">
           網站版本：{config.buildId ?? "尚未提供"}。回饋保存與刪除方式請先閱讀
           <a href="/privacy">隱私說明</a>。

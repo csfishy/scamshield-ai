@@ -1,5 +1,7 @@
 # AI evaluation 操作與限制
 
+下一階段的 Production 五類案例、未核准預算模板、工具範圍與急停程序見 [Production AI 品質驗收準備](../../docs/production-ai-quality-plan.md)。該計畫僅準備；最大總呼叫數／USD／案例數仍為 TBD，不構成 `--execute` 授權。
+
 本候選集的完整 development／holdout 品質評估尚未執行。本次 Beta 準備工作真實 Provider calls=0；歷史另有 [2026-09-05 單案例 smoke](../../docs/ai-smoke-2026-09-05.md)，不可當作本次 revision 或整套品質 PASS。候選集 `candidates/manifest.json` 含 30 張自製去識別化圖片：正常 8、高風險 12、資訊不足 6、對抗 4；development 20／holdout 10。每個內容 family 只在一個 split。
 
 **所有期望只是 B 擬定候選，reviewStatus=pending，annotator/reviewer=null。** 不是人類 ground truth，也不是模型已通過的證據。正常、假物流、假客服 Demo 指定在 development；正式執行 demo 模式每張三次。高風險 category 集合目前刻意待人工收斂，不能用寬鬆候選標籤宣稱分類準確。
