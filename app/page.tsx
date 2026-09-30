@@ -22,6 +22,7 @@ export default function Home() {
       feedbackConfig={getPublicSiteConfig()}
       showDemoLink={false}
       showModeNotice={false}
+      isHomepage
     />
   );
 }

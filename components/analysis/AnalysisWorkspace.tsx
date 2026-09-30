@@ -113,12 +113,14 @@ export function AnalysisWorkspace({
   feedbackConfig,
   showDemoLink = true,
   showModeNotice = true,
+  isHomepage = false,
 }: {
   initialMode: AnalysisMode;
   timeoutMs: number;
   feedbackConfig: FeedbackConfig;
   showDemoLink?: boolean;
   showModeNotice?: boolean;
+  isHomepage?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -350,8 +352,38 @@ export function AnalysisWorkspace({
   const selectionError = error?.area === "selection" ? error : null;
   const analysisError = error?.area === "analysis" ? error : null;
 
+  const actionControls = (
+    <div className="action-row">
+      <button
+        className="button button-primary analyze-button"
+        type="button"
+        onClick={analyze}
+        disabled={!selectedFile || phase === "reading" || isAnalyzing}
+        aria-busy={isAnalyzing}
+      >
+        {isAnalyzing && <span className="spinner" aria-hidden="true" />}
+        {isAnalyzing
+          ? initialMode === "mock"
+            ? "正在載入示範…"
+            : "正在分析…"
+          : initialMode === "mock"
+            ? "顯示 Demo 結果"
+            : "開始 AI 分析"}
+      </button>
+      {isAnalyzing && (
+        <button
+          className="button button-ghost"
+          type="button"
+          onClick={cancelAnalysis}
+        >
+          取消
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="page-frame">
+    <div className={`page-frame ${isHomepage ? "homepage-frame" : ""}`}>
       <header className="site-header">
         <Link className="brand" href="/" aria-label="ScamShield AI 首頁">
           <span className="brand-mark" aria-hidden="true">
@@ -367,12 +399,14 @@ export function AnalysisWorkspace({
         </span>
       </header>
 
-      <nav className="site-nav" aria-label="網站導覽">
-        <span className="beta-label">公開測試版 Beta</span>
-        {showDemoLink && <Link href="/demo">本機 Demo</Link>}
-        <Link href="/privacy">隱私說明</Link>
-        <a href="#site-feedback">意見回饋</a>
-      </nav>
+      {!isHomepage && (
+        <nav className="site-nav" aria-label="網站導覽">
+          <span className="beta-label">公開測試版 Beta</span>
+          {showDemoLink && <Link href="/demo">本機 Demo</Link>}
+          <Link href="/privacy">隱私說明</Link>
+          <a href="#site-feedback">意見回饋</a>
+        </nav>
+      )}
 
       <main>
         <section className="intro" aria-labelledby="page-title">
@@ -477,6 +511,25 @@ export function AnalysisWorkspace({
               </div>
             )}
 
+            {selectionError && (
+              <div
+                ref={selectionErrorRef}
+                className="status-card error-card"
+                role="alert"
+                tabIndex={-1}
+              >
+                <span className="status-icon" aria-hidden="true">
+                  !
+                </span>
+                <div>
+                  <strong>{selectionError.title}</strong>
+                  <span>{selectionError.message}</span>
+                </div>
+              </div>
+            )}
+
+            {isHomepage && actionControls}
+
             <p className="privacy-hint">
               <span aria-hidden="true">!</span>
               上傳前請先遮住不必要的姓名、電話、帳號、信用卡、OTP
@@ -524,50 +577,7 @@ export function AnalysisWorkspace({
               </fieldset>
             )}
 
-            {selectionError && (
-              <div
-                ref={selectionErrorRef}
-                className="status-card error-card"
-                role="alert"
-                tabIndex={-1}
-              >
-                <span className="status-icon" aria-hidden="true">
-                  !
-                </span>
-                <div>
-                  <strong>{selectionError.title}</strong>
-                  <span>{selectionError.message}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="action-row">
-              <button
-                className="button button-primary analyze-button"
-                type="button"
-                onClick={analyze}
-                disabled={!selectedFile || phase === "reading" || isAnalyzing}
-                aria-busy={isAnalyzing}
-              >
-                {isAnalyzing && <span className="spinner" aria-hidden="true" />}
-                {isAnalyzing
-                  ? initialMode === "mock"
-                    ? "正在載入示範…"
-                    : "正在分析…"
-                  : initialMode === "mock"
-                    ? "顯示 Demo 結果"
-                    : "開始 AI 分析"}
-              </button>
-              {isAnalyzing && (
-                <button
-                  className="button button-ghost"
-                  type="button"
-                  onClick={cancelAnalysis}
-                >
-                  取消
-                </button>
-              )}
-            </div>
+            {!isHomepage && actionControls}
 
             <p
               className="sr-status"
@@ -699,6 +709,12 @@ export function AnalysisWorkspace({
       <section id="site-feedback" aria-label="意見回饋管道">
         <FeedbackLinks config={feedbackConfig} />
       </section>
+      {isHomepage && (
+        <nav className="site-nav homepage-bottom-nav" aria-label="頁尾導覽">
+          <span className="beta-label">公開測試版 Beta</span>
+          <Link href="/privacy">隱私說明</Link>
+        </nav>
+      )}
     </div>
   );
 }

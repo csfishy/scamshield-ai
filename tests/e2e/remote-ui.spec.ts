@@ -37,6 +37,103 @@ async function selectImage(page: import("@playwright/test").Page) {
   });
 }
 
+for (const [width, height] of [
+  [320, 568],
+  [375, 667],
+  [390, 844],
+  [393, 852],
+  [430, 932],
+] as const) {
+  test(`homepage keeps both primary actions above the fold at ${width}x${height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+
+    const screenshotCta = page.getByText("選擇截圖", { exact: true });
+    const analyzeCta = page.getByRole("button", { name: "開始 AI 分析" });
+    await expect(screenshotCta).toBeVisible();
+    await expect(analyzeCta).toBeVisible();
+    await expect(analyzeCta).toBeDisabled();
+
+    const [screenshotBox, analyzeBox] = await Promise.all([
+      screenshotCta.boundingBox(),
+      analyzeCta.boundingBox(),
+    ]);
+    expect(screenshotBox).not.toBeNull();
+    expect(analyzeBox).not.toBeNull();
+    expect(screenshotBox!.y).toBeGreaterThanOrEqual(0);
+    expect(screenshotBox!.y + screenshotBox!.height).toBeLessThanOrEqual(
+      height,
+    );
+    expect(analyzeBox!.y).toBeGreaterThanOrEqual(0);
+    expect(analyzeBox!.y + analyzeBox!.height).toBeLessThanOrEqual(height);
+
+    expect(
+      await page.evaluate(() => ({
+        scrollY: window.scrollY,
+        noHorizontalOverflow:
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
+      })),
+    ).toEqual({ scrollY: 0, noHorizontalOverflow: true });
+  });
+}
+
+test("homepage navigation is relocated below feedback without Demo or Feedback links", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.locator(".page-frame > .site-nav:not(.homepage-bottom-nav)"),
+  ).toHaveCount(0);
+  const footerNavigation = page.locator(".homepage-bottom-nav");
+  await expect(footerNavigation).toContainText("公開測試版 Beta");
+  await expect(
+    footerNavigation.getByRole("link", { name: "隱私說明", exact: true }),
+  ).toBeVisible();
+  await expect(
+    footerNavigation.getByRole("link", { name: "本機 Demo", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    footerNavigation.getByRole("link", { name: "意見回饋", exact: true }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(() => {
+      const feedback = document.querySelector("#site-feedback");
+      const navigation = document.querySelector(".homepage-bottom-nav");
+      return Boolean(
+        feedback &&
+        navigation &&
+        feedback.compareDocumentPosition(navigation) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }),
+  ).toBe(true);
+});
+
+test("desktop homepage retains the two-column workspace", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  const uploadPanel = page.locator(".upload-panel");
+  const resultPanel = page.locator(".result-panel");
+  const [uploadBox, resultBox] = await Promise.all([
+    uploadPanel.boundingBox(),
+    resultPanel.boundingBox(),
+  ]);
+  expect(uploadBox).not.toBeNull();
+  expect(resultBox).not.toBeNull();
+  expect(resultBox!.x).toBeGreaterThan(uploadBox!.x + uploadBox!.width);
+  await expect(
+    page.getByRole("button", { name: "開始 AI 分析" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("platform HTML failure stays an error until the user manually retries", async ({
   page,
 }) => {

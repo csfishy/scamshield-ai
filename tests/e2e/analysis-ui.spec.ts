@@ -128,11 +128,17 @@ test("small viewport has no horizontal overflow and keeps controls usable", asyn
   ).toHaveCount(0);
   await expect(page.locator(".mode-notice")).toHaveCount(0);
   await expect(
-    page.getByRole("link", { name: "隱私說明", exact: true }).first(),
+    page.locator(".homepage-bottom-nav").getByRole("link", {
+      name: "隱私說明",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "意見回饋", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".page-frame > .site-nav:not(.homepage-bottom-nav)"),
+  ).toHaveCount(0);
   await expect(page.locator(".privacy-hint")).toContainText(
     "上傳前請先遮住不必要的姓名、電話、帳號、信用卡、OTP 驗證碼與其他敏感資訊",
   );
@@ -170,7 +176,6 @@ test("Beta privacy and unconfigured feedback remain available without uploading"
   await expect(
     page.getByText("公開測試版 Beta", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "意見回饋", exact: true }).click();
   const summary = page.locator("#site-feedback summary");
   await summary.focus();
   await page.keyboard.press("Enter");

@@ -13,11 +13,15 @@ test("production UI shell and actual /analyze boundary", async ({
   ).toHaveCount(0);
   await expect(page.locator(".mode-notice")).toHaveCount(0);
   await expect(
-    page.getByRole("link", { name: "隱私說明", exact: true }).first(),
+    page.locator(".homepage-bottom-nav").getByRole("link", {
+      name: "隱私說明",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "意見回饋", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(page.locator("#site-feedback summary")).toBeVisible();
   const method = await request.get("/analyze");
   expect(method.status()).toBe(405);
   expect(method.headers()["allow"]).toBe("POST");
