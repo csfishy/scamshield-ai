@@ -2306,7 +2306,7 @@ h1 {
 .analysis-main > .result-panel {
   grid-column: 2;
   grid-row: 2;
-  align-self: start;
+  align-self: stretch;
 }
 
 @media (max-width: 1000px) {
@@ -2409,10 +2409,14 @@ h1 {
     line-height: 1.52;
   }
   .homepage-analysis-main .workspace-grid {
-    display: block;
-    margin-top: auto;
+    display: flex;
+    flex: 1 0 auto;
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: 0;
   }
   .homepage-analysis-main .upload-panel {
+    flex: 1;
     padding: 14px;
   }
   .homepage-analysis-main .section-heading {

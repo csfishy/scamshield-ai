@@ -43,6 +43,7 @@ for (const [width, height] of [
   [390, 844],
   [393, 852],
   [430, 932],
+  [390, 932],
 ] as const) {
   test(`homepage keeps both primary actions above the fold at ${width}x${height}`, async ({
     page,
@@ -70,12 +71,29 @@ for (const [width, height] of [
     await expect(analyzeCta).toBeVisible();
     await expect(analyzeCta).toBeDisabled();
 
-    const [screenshotBox, analyzeBox] = await Promise.all([
-      screenshotCta.boundingBox(),
-      analyzeCta.boundingBox(),
-    ]);
+    const [stageBox, heroBox, uploadBox, screenshotBox, analyzeBox] =
+      await Promise.all([
+        page.locator(".mobile-primary-stage").boundingBox(),
+        page.locator(".intro").boundingBox(),
+        page.locator(".upload-panel").boundingBox(),
+        screenshotCta.boundingBox(),
+        analyzeCta.boundingBox(),
+      ]);
+    expect(stageBox).not.toBeNull();
+    expect(heroBox).not.toBeNull();
+    expect(uploadBox).not.toBeNull();
     expect(screenshotBox).not.toBeNull();
     expect(analyzeBox).not.toBeNull();
+
+    const heroToUploadGap = uploadBox!.y - (heroBox!.y + heroBox!.height);
+    const uploadToStageBottom =
+      stageBox!.y +
+      stageBox!.height -
+      (uploadBox!.y + uploadBox!.height);
+    expect(Math.abs(heroToUploadGap)).toBeLessThanOrEqual(1);
+    expect(uploadToStageBottom).toBeGreaterThanOrEqual(15);
+    expect(uploadToStageBottom).toBeLessThanOrEqual(32);
+
     expect(screenshotBox!.y).toBeGreaterThanOrEqual(0);
     expect(screenshotBox!.y + screenshotBox!.height).toBeLessThanOrEqual(
       height,
@@ -197,6 +215,13 @@ for (const width of [1280, 1440]) {
     expect(uploadBox).not.toBeNull();
     expect(resultBox).not.toBeNull();
     expect(resultBox!.x).toBeGreaterThan(uploadBox!.x + uploadBox!.width);
+    expect(
+      Math.abs(
+        uploadBox!.y +
+          uploadBox!.height -
+          (resultBox!.y + resultBox!.height),
+      ),
+    ).toBeLessThanOrEqual(1);
     await expect(
       page.getByRole("button", { name: "開始 AI 分析" }),
     ).toBeVisible();
@@ -207,6 +232,30 @@ for (const width of [1280, 1440]) {
     ).toBe(true);
   });
 }
+
+test("landscape homepage aligns the two card bottoms", async ({ page }) => {
+  await page.setViewportSize({ width: 932, height: 430 });
+  await page.goto("/");
+  const [uploadBox, resultBox] = await Promise.all([
+    page.locator(".upload-panel").boundingBox(),
+    page.locator(".result-panel").boundingBox(),
+  ]);
+  expect(uploadBox).not.toBeNull();
+  expect(resultBox).not.toBeNull();
+  expect(resultBox!.x).toBeGreaterThan(uploadBox!.x + uploadBox!.width);
+  expect(
+    Math.abs(
+      uploadBox!.y +
+        uploadBox!.height -
+        (resultBox!.y + resultBox!.height),
+    ),
+  ).toBeLessThanOrEqual(1);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
 
 test("platform HTML failure stays an error until the user manually retries", async ({
   page,
