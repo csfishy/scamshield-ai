@@ -50,6 +50,20 @@ for (const [width, height] of [
     await page.setViewportSize({ width, height });
     await page.goto("/");
 
+    await expect(page.locator(".site-header")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const heroScene = page.locator(".hero-scene");
+    await expect(heroScene).toBeVisible();
+    const heroSceneStyle = await heroScene.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        opacity: Number(style.opacity),
+        pointerEvents: style.pointerEvents,
+      };
+    });
+    expect(heroSceneStyle.opacity).toBeGreaterThan(0);
+    expect(heroSceneStyle.opacity).toBeLessThanOrEqual(0.4);
+    expect(heroSceneStyle.pointerEvents).toBe("none");
     const screenshotCta = page.getByText("選擇截圖", { exact: true });
     const analyzeCta = page.getByRole("button", { name: "開始 AI 分析" });
     await expect(screenshotCta).toBeVisible();
@@ -68,6 +82,43 @@ for (const [width, height] of [
     );
     expect(analyzeBox!.y).toBeGreaterThanOrEqual(0);
     expect(analyzeBox!.y + analyzeBox!.height).toBeLessThanOrEqual(height);
+
+    if (width === 390 || width === 393) {
+      const resultBox = await page.locator(".result-panel").boundingBox();
+      expect(resultBox).not.toBeNull();
+      expect(resultBox!.y).toBeGreaterThanOrEqual(height);
+
+      const primaryLine = page.locator(".hero-title-primary-line");
+      const accentLine = page.locator(".hero-title-accent-line");
+      const subheadline = page.locator(".hero-title-secondary");
+      const [primaryBox, accentBox, primaryColor, accentColor, subheadColor] =
+        await Promise.all([
+          primaryLine.boundingBox(),
+          accentLine.boundingBox(),
+          primaryLine.evaluate((element) => getComputedStyle(element).color),
+          accentLine.evaluate((element) => getComputedStyle(element).color),
+          subheadline.evaluate((element) => getComputedStyle(element).color),
+        ]);
+      expect(primaryBox).not.toBeNull();
+      expect(accentBox).not.toBeNull();
+      expect(accentBox!.y).toBeGreaterThanOrEqual(
+        primaryBox!.y + primaryBox!.height,
+      );
+      expect(accentColor).not.toBe(primaryColor);
+      expect(subheadColor).toBe(primaryColor);
+
+      const copyLines = page.locator(".hero-copy-line");
+      await expect(copyLines).toHaveCount(2);
+      const [firstCopyBox, secondCopyBox] = await Promise.all([
+        copyLines.nth(0).boundingBox(),
+        copyLines.nth(1).boundingBox(),
+      ]);
+      expect(firstCopyBox).not.toBeNull();
+      expect(secondCopyBox).not.toBeNull();
+      expect(secondCopyBox!.y).toBeGreaterThanOrEqual(
+        firstCopyBox!.y + firstCopyBox!.height,
+      );
+    }
 
     expect(
       await page.evaluate(() => ({
@@ -250,10 +301,42 @@ test("cancel prevents a delayed response from replacing the ready state", async 
 
 const feedbackRequestId = "dbbbdbbb-1234-4321-8123-dbbbbbbbbbbb";
 
-test("real result offers safe feedback, copyable Request ID and no preview upload", async ({
+for (const [width, height] of [
+  [390, 844],
+  [393, 852],
+] as const) {
+  test(`mobile result hides inline feedback while preserving follow-up actions at ${width}x${height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.route("**/analyze", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "x-request-id": feedbackRequestId },
+        body: JSON.stringify(fakeDelivery),
+      });
+    });
+    await page.goto("/");
+    await selectImage(page);
+    await page.getByRole("button", { name: "開始 AI 分析" }).click();
+    await expect(page.getByText("高風險", { exact: true })).toBeVisible();
+    await expect(page.locator(".result-feedback")).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: "分析另一張圖片" }),
+    ).toBeVisible();
+    await expect(page.locator("#site-feedback")).toHaveCount(1);
+    await expect(
+      page.locator("#site-feedback summary", { hasText: "意見回饋" }),
+    ).toHaveCount(1);
+  });
+}
+
+test("desktop result offers safe feedback, copyable Request ID and no preview upload", async ({
   page,
   context,
 }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   let requests = 0;
   await page.route("**/analyze", async (route) => {
     requests++;

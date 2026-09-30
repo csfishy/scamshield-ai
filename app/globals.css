@@ -2281,3 +2281,185 @@ h1 {
 .update-toast {
   border-radius: 0 !important;
 }
+
+/* The analysis sections share one desktop grid, while the phone homepage can
+   treat the hero and upload panel as a single viewport-aware first stage. */
+.analysis-main {
+  display: grid;
+  grid-template-columns: minmax(0, 0.46fr) minmax(0, 0.54fr);
+  column-gap: 16px;
+  row-gap: 2px;
+}
+.analysis-main > .mobile-primary-stage,
+.analysis-main .workspace-grid {
+  display: contents;
+}
+.analysis-main .intro {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.analysis-main .upload-panel {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+}
+.analysis-main > .result-panel {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+}
+
+@media (max-width: 1000px) {
+  .analysis-main {
+    grid-template-columns: minmax(0, 0.48fr) minmax(0, 0.52fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .analysis-main {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .analysis-main .intro,
+  .analysis-main .upload-panel,
+  .analysis-main > .result-panel {
+    grid-column: 1;
+  }
+  .analysis-main .intro {
+    grid-row: 1;
+  }
+  .analysis-main .upload-panel {
+    grid-row: 2;
+  }
+  .analysis-main > .result-panel {
+    grid-row: 3;
+  }
+}
+
+@media (max-width: 520px) {
+  .homepage-analysis-main {
+    display: block;
+  }
+  .homepage-analysis-main > .mobile-primary-stage {
+    display: flex;
+    min-height: calc(100vh - max(8px, env(safe-area-inset-top)) - 44px);
+    min-height: calc(100svh - max(8px, env(safe-area-inset-top)) - 44px);
+    min-height: calc(100dvh - max(8px, env(safe-area-inset-top)) - 44px);
+    flex-direction: column;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .homepage-analysis-main .intro {
+    padding: 24px 2px;
+  }
+  .homepage-analysis-main .hero-scene {
+    display: block;
+    top: 30px;
+    right: -4%;
+    width: 52%;
+    height: 220px;
+    opacity: 0.32;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 32%,
+      #000 68%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 32%,
+      #000 68%
+    );
+  }
+  .homepage-analysis-main .hero-scene::before {
+    top: -4%;
+    left: 10%;
+    width: 150px;
+    height: 210px;
+    filter: blur(7px);
+  }
+  .homepage-analysis-main .hero-scene::after {
+    right: -10%;
+    bottom: -20%;
+    width: 76%;
+    height: 56%;
+    border-width: 6px;
+  }
+  .homepage-analysis-main .eyebrow {
+    margin-bottom: 12px;
+  }
+  .homepage-analysis-main h1 {
+    margin-bottom: 18px;
+  }
+  .homepage-analysis-main .hero-title-primary-line,
+  .homepage-analysis-main .hero-title-accent-line,
+  .homepage-analysis-main .hero-copy-line {
+    display: block;
+  }
+  .homepage-analysis-main .hero-title-accent-line {
+    margin-top: 4px;
+    color: var(--sage-dark);
+  }
+  .homepage-analysis-main .hero-title-secondary {
+    margin-top: 14px;
+    color: inherit;
+  }
+  .homepage-analysis-main .intro-copy {
+    line-height: 1.52;
+  }
+  .homepage-analysis-main .workspace-grid {
+    display: block;
+    margin-top: auto;
+  }
+  .homepage-analysis-main .upload-panel {
+    padding: 14px;
+  }
+  .homepage-analysis-main .section-heading {
+    margin-bottom: 12px;
+  }
+  .homepage-analysis-main .upload-control.is-empty {
+    min-height: 174px;
+  }
+  .homepage-analysis-main .upload-prompt {
+    gap: 4px;
+    padding: 10px;
+  }
+  .homepage-analysis-main .action-row {
+    margin-top: 10px;
+    margin-bottom: 12px;
+  }
+  .homepage-analysis-main .privacy-hint {
+    margin-bottom: 10px;
+    padding: 10px 11px;
+  }
+  .homepage-analysis-main > .result-panel {
+    margin-top: 12px;
+  }
+  .result-feedback {
+    display: none;
+  }
+}
+
+@media (max-width: 350px) {
+  .homepage-analysis-main .intro {
+    padding: 18px 2px 20px;
+  }
+  .homepage-analysis-main .eyebrow {
+    margin-bottom: 8px;
+  }
+  .homepage-analysis-main h1 {
+    margin-bottom: 10px;
+  }
+  .homepage-analysis-main .hero-title-accent-line {
+    margin-top: 2px;
+  }
+  .homepage-analysis-main .hero-title-secondary {
+    margin-top: 7px;
+  }
+  .homepage-analysis-main .hero-scene {
+    right: -10%;
+    width: 48%;
+    opacity: 0.22;
+  }
+}
