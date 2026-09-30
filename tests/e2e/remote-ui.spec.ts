@@ -112,27 +112,50 @@ test("homepage navigation is relocated below feedback without Demo or Feedback l
   ).toBe(true);
 });
 
-test("desktop homepage retains the two-column workspace", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
+test("tablet homepage stacks the workspace without overflow", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
   await page.goto("/");
-  const uploadPanel = page.locator(".upload-panel");
-  const resultPanel = page.locator(".result-panel");
   const [uploadBox, resultBox] = await Promise.all([
-    uploadPanel.boundingBox(),
-    resultPanel.boundingBox(),
+    page.locator(".upload-panel").boundingBox(),
+    page.locator(".result-panel").boundingBox(),
   ]);
   expect(uploadBox).not.toBeNull();
   expect(resultBox).not.toBeNull();
-  expect(resultBox!.x).toBeGreaterThan(uploadBox!.x + uploadBox!.width);
-  await expect(
-    page.getByRole("button", { name: "開始 AI 分析" }),
-  ).toBeVisible();
+  expect(resultBox!.y).toBeGreaterThan(uploadBox!.y + uploadBox!.height);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
 });
+
+for (const width of [1280, 1440]) {
+  test(`desktop homepage retains the two-column workspace at ${width}x900`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const uploadPanel = page.locator(".upload-panel");
+    const resultPanel = page.locator(".result-panel");
+    const [uploadBox, resultBox] = await Promise.all([
+      uploadPanel.boundingBox(),
+      resultPanel.boundingBox(),
+    ]);
+    expect(uploadBox).not.toBeNull();
+    expect(resultBox).not.toBeNull();
+    expect(resultBox!.x).toBeGreaterThan(uploadBox!.x + uploadBox!.width);
+    await expect(
+      page.getByRole("button", { name: "開始 AI 分析" }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  });
+}
 
 test("platform HTML failure stays an error until the user manually retries", async ({
   page,
@@ -253,6 +276,12 @@ test("real result offers safe feedback, copyable Request ID and no preview uploa
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
   await expect(page.getByText("高風險", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "有幫助", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "沒有幫助", exact: true }),
+  ).toBeVisible();
   expect(requests).toBe(1);
   await expect(
     page.getByText(feedbackRequestId, { exact: true }),
@@ -263,9 +292,9 @@ test("real result offers safe feedback, copyable Request ID and no preview uploa
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     feedbackRequestId,
   );
+  await page.getByRole("button", { name: "沒有幫助", exact: true }).click();
   const summary = page.locator("summary", { hasText: "回報判斷問題" });
-  await summary.focus();
-  await page.keyboard.press("Enter");
+  await expect(summary).toBeVisible();
   const form = page.getByRole("link", { name: "開啟 Google 表單（新分頁）" });
   await expect(form).toBeVisible();
   const url = new URL((await form.getAttribute("href"))!);

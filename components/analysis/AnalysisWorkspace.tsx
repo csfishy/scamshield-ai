@@ -107,6 +107,46 @@ function IconScan() {
   );
 }
 
+function IconShield({ compact = false }: { compact?: boolean }) {
+  return (
+    <svg
+      className={compact ? "icon-shield is-compact" : "icon-shield"}
+      viewBox="0 0 48 52"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M24 3 42 10v13c0 12.2-7.2 21.4-18 26C13.2 44.4 6 35.2 6 23V10L24 3Z" />
+      <path d="m16.5 25 5 5 10.5-12" />
+    </svg>
+  );
+}
+
+function IconValue({ kind }: { kind: "shield" | "people" | "leaf" }) {
+  if (kind === "people") {
+    return (
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="11" r="4" />
+        <circle cx="22.5" cy="13" r="3" />
+        <path d="M4.5 26c.5-5.2 3-7.5 7.5-7.5s7 2.3 7.5 7.5M19 20c4.5-.3 7 1.7 7.8 6" />
+      </svg>
+    );
+  }
+  if (kind === "leaf") {
+    return (
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <path d="M26.5 5.5C15.3 5.2 7.2 10.2 8 19.1c.4 4.6 4.8 7.6 9 5.8 7-2.9 8.6-10.8 9.5-19.4Z" />
+        <path d="M5.5 27c4.2-5.1 8.7-9.1 14.4-12.3" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <path d="m16 3.5 10 4v7.2c0 6.8-4 11.9-10 14.4-6-2.5-10-7.6-10-14.4V7.5l10-4Z" />
+      <path d="m11.5 16 3 3 6.5-7" />
+    </svg>
+  );
+}
+
 export function AnalysisWorkspace({
   initialMode,
   timeoutMs,
@@ -362,6 +402,11 @@ export function AnalysisWorkspace({
         aria-busy={isAnalyzing}
       >
         {isAnalyzing && <span className="spinner" aria-hidden="true" />}
+        {!isAnalyzing && initialMode === "remote" && (
+          <span className="button-sparkle" aria-hidden="true">
+            ✦
+          </span>
+        )}
         {isAnalyzing
           ? initialMode === "mock"
             ? "正在載入示範…"
@@ -387,14 +432,18 @@ export function AnalysisWorkspace({
       <header className="site-header">
         <Link className="brand" href="/" aria-label="ScamShield AI 首頁">
           <span className="brand-mark" aria-hidden="true">
-            S
+            <IconShield />
           </span>
-          <span>ScamShield AI</span>
+          <span className="brand-copy">
+            <strong>ScamShield AI</strong>
+            <span>截圖防詐分析</span>
+          </span>
         </Link>
         <span
           className={`mode-pill mode-${initialMode}`}
           aria-label={`目前模式：${initialMode === "mock" ? "本機 Demo" : "即時 AI 分析"}`}
         >
+          <span className="mode-dot" aria-hidden="true" />
           {initialMode === "mock" ? "本機 Demo" : "即時 AI 分析"}
         </span>
       </header>
@@ -410,33 +459,81 @@ export function AnalysisWorkspace({
 
       <main>
         <section className="intro" aria-labelledby="page-title">
-          <p className="eyebrow">停一下，再確認</p>
-          <h1 id="page-title">可疑截圖，先交給 AI 看看</h1>
-          <p className="intro-copy">
-            在點擊連結、付款或提供驗證碼前，先整理圖片中的風險訊號與下一步行動。
-          </p>
-          {showModeNotice && (
-            <div
-              className={`mode-notice mode-notice-${initialMode}`}
-              role="note"
+          {isHomepage && <div className="hero-scene" aria-hidden="true" />}
+          <div className="intro-content">
+            <p className="eyebrow">
+              {isHomepage ? "A SAFER DIGITAL DAY" : "停一下，再確認"}
+            </p>
+            <h1
+              id="page-title"
+              aria-label={isHomepage ? "可疑截圖，先交給 AI 看看" : undefined}
             >
-              <span aria-hidden="true">i</span>
-              <p>
-                {initialMode === "mock" ? (
-                  <>
-                    <strong>本機 Demo：</strong> {DEMO_NOTICE}，不會呼叫{" "}
-                    <code>/analyze</code>。
-                  </>
-                ) : (
-                  <>
-                    <strong>即時模式：</strong>
-                    按下「開始 AI 分析」後，圖片才會傳送至本服務的 Vercel 部署與
-                    OpenAI；選圖預覽留在本機。
-                  </>
-                )}
-              </p>
-            </div>
-          )}
+              {isHomepage && (
+                <span className="hero-title-primary" aria-hidden="true">
+                  停一下，再確認
+                </span>
+              )}
+              <span className={isHomepage ? "hero-title-secondary" : undefined}>
+                可疑截圖，先交給 AI 看看
+              </span>
+            </h1>
+            <p className="intro-copy">
+              在點擊連結、付款或提供驗證碼前，先整理圖片中的風險訊號與下一步行動。
+            </p>
+            {showModeNotice && (
+              <div
+                className={`mode-notice mode-notice-${initialMode}`}
+                role="note"
+              >
+                <span aria-hidden="true">i</span>
+                <p>
+                  {initialMode === "mock" ? (
+                    <>
+                      <strong>本機 Demo：</strong> {DEMO_NOTICE}，不會呼叫{" "}
+                      <code>/analyze</code>。
+                    </>
+                  ) : (
+                    <>
+                      <strong>即時模式：</strong>
+                      按下「開始 AI 分析」後，圖片才會傳送至本服務的 Vercel
+                      部署與 OpenAI；選圖預覽留在本機。
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
+            {isHomepage && (
+              <ul className="value-props" aria-label="服務特色">
+                <li>
+                  <span className="value-icon">
+                    <IconValue kind="shield" />
+                  </span>
+                  <span>
+                    <strong>快速辨識風險</strong>
+                    <small>AI 即時分析</small>
+                  </span>
+                </li>
+                <li>
+                  <span className="value-icon">
+                    <IconValue kind="people" />
+                  </span>
+                  <span>
+                    <strong>保護你我家人</strong>
+                    <small>少一個受害者</small>
+                  </span>
+                </li>
+                <li>
+                  <span className="value-icon">
+                    <IconValue kind="leaf" />
+                  </span>
+                  <span>
+                    <strong>更安心的數位生活</strong>
+                    <small>從多一次確認開始</small>
+                  </span>
+                </li>
+              </ul>
+            )}
+          </div>
         </section>
 
         <div className="workspace-grid" aria-label="ScamShield 分析工作區">
@@ -445,9 +542,16 @@ export function AnalysisWorkspace({
             aria-labelledby="upload-title"
           >
             <div className="section-heading">
+              <span className="step-number" aria-hidden="true">
+                1
+              </span>
               <div>
                 <h2 id="upload-title">選擇可疑截圖</h2>
-                <p>單張 JPEG 或 PNG，最大 4 MiB</p>
+                <p>
+                  {isHomepage
+                    ? "上傳你覺得可疑的對話、簡訊、社群貼文或網頁截圖"
+                    : "單張 JPEG 或 PNG，最大 4 MiB"}
+                </p>
               </div>
             </div>
 
@@ -595,6 +699,9 @@ export function AnalysisWorkspace({
             aria-busy={isAnalyzing}
           >
             <div className="section-heading">
+              <span className="step-number" aria-hidden="true">
+                2
+              </span>
               <div>
                 <h2 id="result-title" ref={resultHeadingRef} tabIndex={-1}>
                   分析結果
@@ -629,6 +736,7 @@ export function AnalysisWorkspace({
                       requestId={requestId}
                       label="回報判斷問題"
                       type="判斷可能有誤"
+                      variant="result"
                     />
                   </>
                 )}
@@ -711,8 +819,17 @@ export function AnalysisWorkspace({
       </section>
       {isHomepage && (
         <nav className="site-nav homepage-bottom-nav" aria-label="頁尾導覽">
-          <span className="beta-label">公開測試版 Beta</span>
-          <Link href="/privacy">隱私說明</Link>
+          <span className="footer-brand">
+            <IconShield compact />
+            <span>
+              <strong>ScamShield AI</strong>
+              <small>截圖防詐分析</small>
+            </span>
+          </span>
+          <span className="footer-links">
+            <span className="beta-label">公開測試版 Beta</span>
+            <Link href="/privacy">隱私說明</Link>
+          </span>
         </nav>
       )}
     </div>

@@ -58,16 +58,26 @@ export function FeedbackLinks({
   requestId,
   label = "意見回饋",
   type = "其他",
+  variant = "default",
 }: {
   config: FeedbackConfig;
   requestId?: string;
   label?: string;
   type?: FeedbackType;
+  variant?: "default" | "result";
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
   const formUrl = buildFeedbackUrl(config, requestId, type);
   const mailto = buildFeedbackMailto(config.contactEmail, requestId);
-  return (
-    <details className="feedback-panel">
+  const panel = (
+    <details
+      className="feedback-panel"
+      open={variant === "result" ? expanded : undefined}
+      onToggle={(event) => {
+        if (variant === "result") setExpanded(event.currentTarget.open);
+      }}
+    >
       <summary>{label}</summary>
       <div className="feedback-content">
         <p>
@@ -123,5 +133,48 @@ export function FeedbackLinks({
         )}
       </div>
     </details>
+  );
+
+  if (variant !== "result") return panel;
+
+  return (
+    <div className="result-feedback">
+      <div className="result-feedback-intro">
+        <span aria-hidden="true">◇</span>
+        <div>
+          <strong>這個分析結果有幫助嗎？</strong>
+          <small>你的回饋能幫助我們持續優化</small>
+        </div>
+      </div>
+      <div className="result-feedback-actions" aria-label="分析結果回饋">
+        <button
+          className="button button-ghost"
+          type="button"
+          onClick={() => {
+            setAcknowledged(true);
+            setExpanded(false);
+          }}
+        >
+          <span aria-hidden="true">♡</span>有幫助
+        </button>
+        <button
+          className="button button-ghost"
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => {
+            setAcknowledged(false);
+            setExpanded(true);
+          }}
+        >
+          <span aria-hidden="true">◇</span>沒有幫助
+        </button>
+      </div>
+      {acknowledged && (
+        <p className="feedback-thanks" role="status">
+          謝謝你的回饋。
+        </p>
+      )}
+      {panel}
+    </div>
   );
 }

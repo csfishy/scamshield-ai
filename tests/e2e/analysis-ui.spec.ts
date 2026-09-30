@@ -292,6 +292,8 @@ test("PWA assets are served and the worker keeps /analyze outside its cache", as
     start_url: "/",
     scope: "/",
     display: "standalone",
+    background_color: "#f5f2ea",
+    theme_color: "#315a48",
   });
 
   for (const path of [
