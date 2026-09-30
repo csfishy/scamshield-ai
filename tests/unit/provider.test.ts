@@ -48,7 +48,6 @@ const image = {
   height: 10,
   sizeBytes: 28,
 };
-const expectedTextTailPattern = "^[\\s\\S]*[^,，}\\]]$";
 function result(
   text: string,
   status = "completed",
@@ -112,8 +111,8 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
         type: "string",
         minLength: 1,
         maxLength: 300,
-        pattern: expectedTextTailPattern,
       });
+      expect(field).not.toHaveProperty("pattern");
       expect(field.description).toEqual(expect.any(String));
     }
     expect(summary.description).toMatch(
@@ -145,30 +144,21 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
       /debug|internal prompt|api.?key/iu,
     );
   });
-  it("rejects known serialization tails while allowing natural-language punctuation", () => {
-    const pattern = new RegExp(expectedTextTailPattern, "u");
-    for (const text of [
-      "可疑要求。}],",
-      "可疑要求。]},",
-      "可疑要求。},]",
-      "可疑要求。}},",
-      "可疑要求。]],",
-      "可疑要求，",
-      '{"ok":true}',
-    ]) {
-      expect(pattern.test(text), text).toBe(false);
-    }
-    for (const text of [
-      "這是一則可疑訊息。",
-      "請勿提供驗證碼。",
-      "網址中包含 ] 符號，但仍需進一步確認。",
-      "訊息中出現 } 符號，但不能單憑此判斷。",
-      'JSON 範例是 {"ok":true}。',
-      "陣列內容為 [1,2,3]。",
-      '對方貼出 {"a":[1,2]}，請不要直接執行。',
-    ]) {
-      expect(pattern.test(text), text).toBe(true);
-    }
+  it("delegates text-tail semantics to deterministic server normalization", () => {
+    const analyzed = (
+      outputJsonSchema.properties.outcome as {
+        anyOf: Array<{ properties: Record<string, unknown> }>;
+      }
+    ).anyOf[0].properties;
+    const signals = analyzed.signals as {
+      items: { properties: Record<string, unknown> };
+    };
+    const recommendations = analyzed.recommendations as {
+      items: Record<string, unknown>;
+    };
+    expect(analyzed.summary).not.toHaveProperty("pattern");
+    expect(signals.items.properties.reason).not.toHaveProperty("pattern");
+    expect(recommendations.items).not.toHaveProperty("pattern");
   });
   it("instructs natural-language text without surrounding serialization debris", async () => {
     const prompt = await readFile(
@@ -233,13 +223,9 @@ describe("real SDK adapter via fake HTTP transport (no paid requests)", () => {
     const sentRecommendations = sentFields.recommendations as {
       items: Record<string, unknown>;
     };
-    expect((sentFields.summary as { pattern: string }).pattern).toBe(
-      expectedTextTailPattern,
-    );
-    expect(
-      (sentSignal.items.properties.reason as { pattern: string }).pattern,
-    ).toBe(expectedTextTailPattern);
-    expect(sentRecommendations.items.pattern).toBe(expectedTextTailPattern);
+    expect(sentFields.summary).not.toHaveProperty("pattern");
+    expect(sentSignal.items.properties.reason).not.toHaveProperty("pattern");
+    expect(sentRecommendations.items).not.toHaveProperty("pattern");
     expect(JSON.stringify(body)).toContain("data:image/png;base64,");
     expect(JSON.stringify(body)).toContain("untrusted evidence");
     expect(transport).toHaveBeenCalledOnce();

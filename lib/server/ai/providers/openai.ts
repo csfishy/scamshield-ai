@@ -23,14 +23,10 @@ import type {
   ProviderResult,
 } from "../provider";
 
-// User-facing prose must not end with JSON serialization delimiters.
-const textTailPattern = "^[\\s\\S]*[^,，}\\]]$";
-
 const summarySchema = {
   type: "string",
   minLength: 1,
   maxLength: 300,
-  pattern: textTailPattern,
   description:
     "Concise natural-language assessment for the user. User-facing prose only: no JSON serialization syntax, field labels, Markdown, HTML, or hidden reasoning.",
 };
@@ -38,7 +34,6 @@ const signalReasonSchema = {
   type: "string",
   minLength: 1,
   maxLength: 300,
-  pattern: textTailPattern,
   description:
     "Natural-language explanation grounded in visible evidence and why this signal matters. Do not append JSON object or array closing syntax, field names, or schema syntax; do not claim unperformed verification.",
 };
@@ -46,7 +41,6 @@ const recommendationSchema = {
   type: "string",
   minLength: 1,
   maxLength: 300,
-  pattern: textTailPattern,
   description:
     "Safe, actionable advice for the user in natural language only. Do not append JSON serialization syntax, provide a suspicious clickable link, or ask for credentials.",
 };

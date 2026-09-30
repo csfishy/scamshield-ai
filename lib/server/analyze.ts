@@ -10,7 +10,7 @@ import {
 } from "./multipart";
 import { validateImage } from "./image-validation";
 import { createOpenAIProvider, loadPrompt } from "./ai/providers/openai";
-import { normalizeOutcome } from "./ai/normalize";
+import { normalizeOutcomeWithMetadata } from "./ai/normalize";
 import type { ScamAIProvider } from "./ai/provider";
 import { emitTelemetry, type AnalysisEvent } from "./telemetry";
 import {
@@ -123,7 +123,14 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
           event.inputTokens = result.usage.inputTokens;
           event.outputTokens = result.usage.outputTokens;
         }
-        const output = normalizeOutcome(result.outcome);
+        const normalized = normalizeOutcomeWithMetadata(result.outcome);
+        event.textNormalizationApplied = normalized.normalization.applied;
+        event.textNormalizationCount = normalized.normalization.count;
+        if (normalized.normalization.applied) {
+          event.textNormalizationKind = normalized.normalization.kind;
+          event.textNormalizationFields = normalized.normalization.fields;
+        }
+        const output = normalized.result;
         event.status = 200;
         return new Response(JSON.stringify(output), {
           status: 200,

@@ -53,6 +53,14 @@ const eventSchema = z
     leaseDisposition: z
       .enum(["released", "held_until_expiry", "release_failed"])
       .optional(),
+    textNormalizationApplied: z.boolean().optional(),
+    textNormalizationKind: z.literal("serialization_tail").optional(),
+    textNormalizationCount: z.number().int().min(0).max(16).optional(),
+    textNormalizationFields: z
+      .array(z.enum(SCHEMA_FAILURE_FIELDS))
+      .max(SCHEMA_FAILURE_FIELDS.length)
+      .refine((fields) => new Set(fields).size === fields.length)
+      .optional(),
   })
   .superRefine((event, ctx) => {
     if (event.schemaFailureStage && event.failureKind !== "schema")
@@ -110,6 +118,31 @@ const eventSchema = z
         event.usageKnown !== true)
     )
       ctx.addIssue({ code: "custom", message: "Invalid usage diagnostics" });
+    const normalizationFields = event.textNormalizationFields ?? [];
+    if (
+      event.textNormalizationApplied === true &&
+      (event.textNormalizationKind !== "serialization_tail" ||
+        !event.textNormalizationCount ||
+        normalizationFields.length === 0)
+    )
+      ctx.addIssue({ code: "custom", message: "Invalid normalization event" });
+    if (
+      event.textNormalizationApplied === false &&
+      (event.textNormalizationKind !== undefined ||
+        event.textNormalizationCount !== 0 ||
+        normalizationFields.length > 0)
+    )
+      ctx.addIssue({ code: "custom", message: "Invalid clean text event" });
+    if (
+      event.textNormalizationApplied === undefined &&
+      (event.textNormalizationKind !== undefined ||
+        event.textNormalizationCount !== undefined ||
+        event.textNormalizationFields !== undefined)
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Incomplete normalization event",
+      });
   });
 export type AnalysisEvent = z.infer<typeof eventSchema>;
 // Runtime allowlist strips even accidental caller additions. Never log exceptions.

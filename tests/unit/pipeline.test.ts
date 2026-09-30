@@ -54,48 +54,42 @@ describe("normalization and errors", () => {
       "unknown",
     );
   });
-  it.each(["}],", "}]", "]},", "},]"])(
-    "rejects structural debris in a summary: %s",
+  it.each(["}],", "]},", "},]"])(
+    "normalizes a high-confidence structural tail in a summary: %s",
     (tail) => {
-      expectSchemaFailure(
-        { ...outcome, summary: `這是一則可疑訊息。${tail}` },
-        "structural_debris",
-        "summary",
-      );
+      expect(
+        normalizeOutcome({ ...outcome, summary: `這是一則可疑訊息。${tail}` })
+          .summary,
+      ).toBe("這是一則可疑訊息。");
     },
   );
   it.each(["]],", "}},", "}],  "])(
-    "rejects other malformed tail patterns after trim: %s",
+    "normalizes other allowlisted tails after trim: %s",
     (tail) => {
-      expectSchemaFailure(
-        { ...outcome, summary: `這是一則可疑訊息。${tail}` },
-        "structural_debris",
-        "summary",
-      );
+      expect(
+        normalizeOutcome({ ...outcome, summary: `這是一則可疑訊息。${tail}` })
+          .summary,
+      ).toBe("這是一則可疑訊息。");
     },
   );
-  it("rejects structural debris in any signal reason", () => {
-    expectSchemaFailure(
-      {
+  it("normalizes structural debris in a signal reason", () => {
+    expect(
+      normalizeOutcome({
         ...outcome,
         signals: [
           { type: "other", severity: "low", reason: "前一項正常。" },
           { type: "other", severity: "low", reason: "要求提供驗證碼。}]," },
         ],
-      },
-      "structural_debris",
-      "signal_reason",
-    );
+      }).signals[1].reason,
+    ).toBe("要求提供驗證碼。");
   });
-  it("rejects structural debris in any recommendation", () => {
-    expectSchemaFailure(
-      {
+  it("normalizes structural debris in a recommendation", () => {
+    expect(
+      normalizeOutcome({
         ...outcome,
         recommendations: ["請先確認。", "請勿點擊連結。}],"],
-      },
-      "structural_debris",
-      "recommendation",
-    );
+      }).recommendations[1],
+    ).toBe("請勿點擊連結。");
   });
   it.each([
     "請勿提供驗證碼。",
@@ -243,6 +237,11 @@ describe("API validation, deadline, cancellation and single call", () => {
       "application/json; charset=utf-8",
     );
     expect(analyze).toHaveBeenCalledOnce();
+    expect(telemetry).toHaveBeenCalledOnce();
+    expect(telemetry.mock.calls[0][0]).toMatchObject({
+      textNormalizationApplied: false,
+      textNormalizationCount: 0,
+    });
     expect(JSON.stringify(telemetry.mock.calls)).not.toMatch(
       /PRIVATE-NAME|目前可讀|test-placeholder/,
     );
@@ -536,19 +535,18 @@ describe("API validation, deadline, cancellation and single call", () => {
       "providerResponseStatus",
     );
   });
-  it("telemetry allowlist retains fixed diagnostics and strips raw Provider data", () => {
+  it("telemetry allowlist retains normalization metadata and strips raw Provider data", () => {
     const log = vi.spyOn(console, "info").mockImplementation(() => {});
     emitTelemetry({
       requestId: crypto.randomUUID(),
-      status: 500,
-      failureKind: "schema",
-      schemaFailureStage: "response_incomplete",
-      providerResponseStatus: "incomplete",
-      providerIncompleteReason: "content_filter",
-      providerOutputTextPresent: true,
+      status: 200,
       usageKnown: true,
       inputTokens: 100,
       outputTokens: 20,
+      textNormalizationApplied: true,
+      textNormalizationKind: "serialization_tail",
+      textNormalizationCount: 2,
+      textNormalizationFields: ["signal_reason", "recommendation"],
       durationMs: 1,
       ...{
         rawOutput: "PRIVATE RAW OUTPUT",
@@ -564,9 +562,12 @@ describe("API validation, deadline, cancellation and single call", () => {
     });
     expect(log).toHaveBeenCalledOnce();
     const saved = String(log.mock.calls[0][0]);
-    expect(saved).toContain('"providerResponseStatus":"incomplete"');
-    expect(saved).toContain('"providerIncompleteReason":"content_filter"');
-    expect(saved).toContain('"providerOutputTextPresent":true');
+    expect(saved).toContain('"textNormalizationApplied":true');
+    expect(saved).toContain('"textNormalizationKind":"serialization_tail"');
+    expect(saved).toContain('"textNormalizationCount":2');
+    expect(saved).toContain(
+      '"textNormalizationFields":["signal_reason","recommendation"]',
+    );
     expect(saved).not.toContain("PRIVATE");
     log.mockRestore();
   });

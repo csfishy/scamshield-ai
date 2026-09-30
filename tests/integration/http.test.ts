@@ -90,7 +90,37 @@ beforeAll(async () => {
                       ...providerAnalysis,
                       recommendations: ["請勿提供驗證碼。}],"],
                     }
-                  : { status: "analyzed", ...providerAnalysis };
+                  : scenario === "ambiguous_debris"
+                    ? {
+                        status: "analyzed",
+                        ...providerAnalysis,
+                        signals: [
+                          {
+                            type: "other",
+                            severity: "low",
+                            reason: "foobar}],",
+                          },
+                        ],
+                      }
+                    : scenario === "recursive_debris"
+                      ? {
+                          status: "analyzed",
+                          ...providerAnalysis,
+                          signals: [
+                            {
+                              type: "other",
+                              severity: "low",
+                              reason: "要求提供驗證碼。}],}],",
+                            },
+                          ],
+                        }
+                      : scenario === "legitimate_json"
+                        ? {
+                            status: "analyzed",
+                            ...providerAnalysis,
+                            summary: '{"a":[1,2]}',
+                          }
+                        : { status: "analyzed", ...providerAnalysis };
     const content =
       scenario === "refusal"
         ? [{ type: "refusal", refusal: "private-refusal" }]
@@ -375,27 +405,27 @@ describe("real Next.js + SDK HTTP integration", () => {
     ["summary_debris", "summary"],
     ["recommendation_debris", "recommendation"],
   ] as const)(
-    "rejects schema-valid %s without exposing text or retrying",
+    "normalizes schema-valid %s without exposing raw text or retrying",
     async (name, field) => {
       scenario = name;
       const before = calls;
       try {
         const response = await post([await imagePart()]);
-        expect(response.status).toBe(500);
+        expect(response.status).toBe(200);
         expect(response.headers.get("cache-control")).toBe("no-store");
         expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
         const text = await response.text();
-        expect(parseAnalysisResponse(500, JSON.parse(text))).toMatchObject({
-          error: { code: "analysis_failed" },
-        });
+        parseAnalysisResponse(200, JSON.parse(text));
         expect(text).not.toContain("要求提供驗證碼。}],");
         expect(calls - before).toBe(1);
         const event = await loggedEvent(response.headers.get("x-request-id")!);
         expect(event).toMatchObject({
-          status: 500,
+          status: 200,
           providerEntered: true,
-          schemaFailureStage: "structural_debris",
-          schemaFailureField: field,
+          textNormalizationApplied: true,
+          textNormalizationKind: "serialization_tail",
+          textNormalizationCount: 1,
+          textNormalizationFields: [field],
         });
         expect(JSON.stringify(event)).not.toContain("要求提供驗證碼。}],");
       } finally {
@@ -403,9 +433,48 @@ describe("real Next.js + SDK HTTP integration", () => {
       }
     },
   );
+  it.each(["ambiguous_debris", "recursive_debris"])(
+    "fails closed for %s without silent repair",
+    async (name) => {
+      scenario = name;
+      const before = calls;
+      try {
+        const response = await post([await imagePart()]);
+        expect(response.status).toBe(500);
+        expect((await response.json()).error.code).toBe("analysis_failed");
+        expect(calls - before).toBe(1);
+        expect(
+          await loggedEvent(response.headers.get("x-request-id")!),
+        ).toMatchObject({
+          status: 500,
+          schemaFailureStage: "structural_debris",
+          schemaFailureField: "signal_reason",
+        });
+      } finally {
+        scenario = "normal";
+      }
+    },
+  );
+  it("accepts a legitimate JSON ending without normalization", async () => {
+    scenario = "legitimate_json";
+    try {
+      const response = await post([await imagePart()]);
+      expect(response.status).toBe(200);
+      expect((await response.json()).summary).toBe('{"a":[1,2]}');
+      expect(
+        await loggedEvent(response.headers.get("x-request-id")!),
+      ).toMatchObject({
+        status: 200,
+        textNormalizationApplied: false,
+        textNormalizationCount: 0,
+      });
+    } finally {
+      scenario = "normal";
+    }
+  });
   it.each([
     ["malformed", 500, "output_json_parse", undefined],
-    ["text_debris", 500, "structural_debris", "signal_reason"],
+    ["text_debris", 200, undefined, undefined],
     ["outcome_mismatch", 500, "provider_outcome", undefined],
     ["incomplete_max_output", 500, "response_incomplete", undefined],
     ["normal", 200, undefined, undefined],
