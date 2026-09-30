@@ -52,6 +52,18 @@ for (const [width, height] of [
 
     await expect(page.locator(".site-header")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const heroScene = page.locator(".hero-scene");
+    await expect(heroScene).toBeVisible();
+    const heroSceneStyle = await heroScene.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        opacity: Number(style.opacity),
+        pointerEvents: style.pointerEvents,
+      };
+    });
+    expect(heroSceneStyle.opacity).toBeGreaterThan(0);
+    expect(heroSceneStyle.opacity).toBeLessThanOrEqual(0.4);
+    expect(heroSceneStyle.pointerEvents).toBe("none");
     const screenshotCta = page.getByText("選擇截圖", { exact: true });
     const analyzeCta = page.getByRole("button", { name: "開始 AI 分析" });
     await expect(screenshotCta).toBeVisible();

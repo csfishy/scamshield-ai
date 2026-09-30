@@ -2351,6 +2351,41 @@ h1 {
   .homepage-analysis-main .intro {
     padding: 24px 2px;
   }
+  .homepage-analysis-main .hero-scene {
+    display: block;
+    top: 30px;
+    right: -4%;
+    width: 52%;
+    height: 220px;
+    opacity: 0.32;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 32%,
+      #000 68%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 32%,
+      #000 68%
+    );
+  }
+  .homepage-analysis-main .hero-scene::before {
+    top: -4%;
+    left: 10%;
+    width: 150px;
+    height: 210px;
+    filter: blur(7px);
+  }
+  .homepage-analysis-main .hero-scene::after {
+    right: -10%;
+    bottom: -20%;
+    width: 76%;
+    height: 56%;
+    border-width: 6px;
+  }
   .homepage-analysis-main .eyebrow {
     margin-bottom: 12px;
   }
@@ -2421,5 +2456,10 @@ h1 {
   }
   .homepage-analysis-main .hero-title-secondary {
     margin-top: 7px;
+  }
+  .homepage-analysis-main .hero-scene {
+    right: -10%;
+    width: 48%;
+    opacity: 0.22;
   }
 }

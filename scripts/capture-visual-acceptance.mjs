@@ -139,9 +139,11 @@ try {
   await measureFeedback(1440, 900);
   await capture("desktop-idle-1440x900.png", 1440, 900);
   await capture("desktop-result-1440x900.png", 1440, 900, "result");
+  await capture("mobile-idle-375x667.png", 375, 667);
   await capture("mobile-idle-390x844.png", 390, 844);
   await capture("mobile-selected-390x844.png", 390, 844, "selected");
   await capture("mobile-idle-393x852.png", 393, 852);
+  await capture("mobile-idle-430x932.png", 430, 932);
   await capture("mobile-result-393x852.png", 393, 852, "result");
 
   const standaloneContext = await browser.newContext({
