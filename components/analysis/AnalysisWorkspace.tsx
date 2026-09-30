@@ -111,10 +111,14 @@ export function AnalysisWorkspace({
   initialMode,
   timeoutMs,
   feedbackConfig,
+  showDemoLink = true,
+  showModeNotice = true,
 }: {
   initialMode: AnalysisMode;
   timeoutMs: number;
   feedbackConfig: FeedbackConfig;
+  showDemoLink?: boolean;
+  showModeNotice?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -365,7 +369,7 @@ export function AnalysisWorkspace({
 
       <nav className="site-nav" aria-label="網站導覽">
         <span className="beta-label">公開測試版 Beta</span>
-        <Link href="/demo">本機 Demo</Link>
+        {showDemoLink && <Link href="/demo">本機 Demo</Link>}
         <Link href="/privacy">隱私說明</Link>
         <a href="#site-feedback">意見回饋</a>
       </nav>
@@ -377,23 +381,28 @@ export function AnalysisWorkspace({
           <p className="intro-copy">
             在點擊連結、付款或提供驗證碼前，先整理圖片中的風險訊號與下一步行動。
           </p>
-          <div className={`mode-notice mode-notice-${initialMode}`} role="note">
-            <span aria-hidden="true">i</span>
-            <p>
-              {initialMode === "mock" ? (
-                <>
-                  <strong>本機 Demo：</strong> {DEMO_NOTICE}，不會呼叫{" "}
-                  <code>/analyze</code>。
-                </>
-              ) : (
-                <>
-                  <strong>即時模式：</strong>
-                  按下「開始 AI 分析」後，圖片才會傳送至本服務的 Vercel 部署與
-                  OpenAI；選圖預覽留在本機。
-                </>
-              )}
-            </p>
-          </div>
+          {showModeNotice && (
+            <div
+              className={`mode-notice mode-notice-${initialMode}`}
+              role="note"
+            >
+              <span aria-hidden="true">i</span>
+              <p>
+                {initialMode === "mock" ? (
+                  <>
+                    <strong>本機 Demo：</strong> {DEMO_NOTICE}，不會呼叫{" "}
+                    <code>/analyze</code>。
+                  </>
+                ) : (
+                  <>
+                    <strong>即時模式：</strong>
+                    按下「開始 AI 分析」後，圖片才會傳送至本服務的 Vercel 部署與
+                    OpenAI；選圖預覽留在本機。
+                  </>
+                )}
+              </p>
+            </div>
+          )}
         </section>
 
         <div className="workspace-grid" aria-label="ScamShield 分析工作區">

@@ -20,6 +20,8 @@ export default function Home() {
       initialMode={publicAnalysisMode()}
       timeoutMs={25_000}
       feedbackConfig={getPublicSiteConfig()}
+      showDemoLink={false}
+      showModeNotice={false}
     />
   );
 }

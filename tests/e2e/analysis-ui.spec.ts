@@ -123,12 +123,40 @@ test("small viewport has no horizontal overflow and keeps controls usable", asyn
   await expect(
     page.getByRole("heading", { name: "可疑截圖，先交給 AI 看看" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "本機 Demo", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".mode-notice")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "隱私說明", exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "意見回饋", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".privacy-hint")).toContainText(
+    "上傳前請先遮住不必要的姓名、電話、帳號、信用卡、OTP 驗證碼與其他敏感資訊",
+  );
   await expect(page.locator('input[type="file"]')).toBeAttached();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+});
+
+test("Demo route keeps its navigation, notice, and local functionality", async ({
+  page,
+}) => {
+  await page.goto("/demo");
+  await expect(
+    page.getByRole("link", { name: "本機 Demo", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".mode-notice")).toContainText(
+    "示範資料，未分析此圖片",
+  );
+  await expect(
+    page.getByRole("button", { name: "顯示 Demo 結果" }),
+  ).toBeVisible();
 });
 
 test("Beta privacy and unconfigured feedback remain available without uploading", async ({

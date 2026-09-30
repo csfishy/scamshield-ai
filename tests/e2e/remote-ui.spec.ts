@@ -281,7 +281,7 @@ for (const [code, status, message] of [
       ),
     ).toBe(true);
     expect(requests).toBe(1);
-    await page.getByRole("link", { name: "本機 Demo", exact: true }).click();
+    await page.goto("/demo");
     await expect(
       page.getByRole("button", { name: "顯示 Demo 結果" }),
     ).toBeVisible();

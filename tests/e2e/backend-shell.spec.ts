@@ -9,7 +9,14 @@ test("production UI shell and actual /analyze boundary", async ({
     page.getByRole("heading", { name: "可疑截圖，先交給 AI 看看" }),
   ).toBeVisible();
   await expect(
-    page.getByText("本機 Demo", { exact: true }).first(),
+    page.getByRole("link", { name: "本機 Demo", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".mode-notice")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "隱私說明", exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "意見回饋", exact: true }),
   ).toBeVisible();
   const method = await request.get("/analyze");
   expect(method.status()).toBe(405);
