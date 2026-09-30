@@ -1,6 +1,7 @@
 import { quotaPrefix } from "../../lib/server/quota-config";
 import {
   ACQUIRE_SCRIPT,
+  FINALIZE_SCRIPT,
   PREFLIGHT_SCRIPT,
   RELEASE_SCRIPT,
   START_SCRIPT,
@@ -96,7 +97,8 @@ export async function runIntegration(
       preflight: PREFLIGHT_SCRIPT,
       acquire: ACQUIRE_SCRIPT,
       start: START_SCRIPT,
-      release: RELEASE_SCRIPT,
+      finalize: FINALIZE_SCRIPT,
+      releaseCompatibility: RELEASE_SCRIPT,
     }),
   };
   console.log(JSON.stringify(result));

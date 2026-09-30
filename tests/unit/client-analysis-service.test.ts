@@ -57,9 +57,13 @@ describe("client /analyze transport", () => {
 
   it.each([
     ["client_rate_limited", 429],
+    ["device_quota_exceeded", 429],
+    ["ip_safety_limit_exceeded", 429],
     ["daily_quota_exceeded", 429],
     ["global_quota_exceeded", 429],
     ["analysis_busy", 429],
+    ["service_busy", 503],
+    ["provider_temporarily_unavailable", 503],
     ["analysis_disabled", 503],
     ["rate_limit_unavailable", 503],
   ])(
@@ -105,7 +109,9 @@ describe("client /analyze transport", () => {
         expect(init?.method).toBe("POST");
         expect(init?.cache).toBe("no-store");
         expect(init?.redirect).toBe("error");
-        expect(init?.headers).toBeUndefined();
+        expect(init?.headers).toMatchObject({
+          "X-ScamShield-Device-Id": expect.stringMatching(/^[0-9a-f-]{36}$/),
+        });
         const form = init?.body as FormData;
         expect(form.get("image")).toBe(file);
         expect(form.get("source")).toBe("screenshot");

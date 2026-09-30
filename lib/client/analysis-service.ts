@@ -6,6 +6,7 @@ import {
   type ErrorCode,
 } from "../contracts/analysis";
 import { validRequestId } from "../feedback";
+import { anonymousDeviceId } from "./device-id";
 
 export type ClientErrorKind =
   | "contract"
@@ -202,6 +203,7 @@ export async function analyzeRemoteImage(
       response = await fetcher("/analyze", {
         method: "POST",
         body: form,
+        headers: { "X-ScamShield-Device-Id": anonymousDeviceId() },
         signal: controller.signal,
         cache: "no-store",
         redirect: "error",

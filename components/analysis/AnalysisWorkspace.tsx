@@ -246,7 +246,7 @@ export function AnalysisWorkspace({
     setPhase(selectedFile ? "ready" : "idle");
     setLiveMessage(
       initialMode === "remote"
-        ? "已取消等待；已進入 AI 流程的嘗試仍可能計次。你可以重新開始或選擇另一張圖片。"
+        ? "已取消等待；未完成的分析不會計入成功分析額度。你可以重新開始或選擇另一張圖片。"
         : "已取消分析。你可以重新開始或選擇另一張圖片。",
     );
   };
@@ -482,8 +482,9 @@ export function AnalysisWorkspace({
                 <Link href="/privacy">閱讀資料處理與隱私說明</Link>。
               </p>
               <p>
-                同一家庭、公司或公共網路可能共用額度。額度按獲准進入 AI
-                流程的分析嘗試計次；資訊不足、取消、逾時或失敗仍可能計次，不保證成功次數。
+                每個匿名裝置每日可完成 30
+                次分析；只計成功結果。另設共用網路與全站安全上限， 於台北時間
+                00:00 重置。
               </p>
             </div>
 

@@ -6,7 +6,13 @@ export function allowedQuota(): QuotaService {
     async preflight() {
       return {
         async acquire() {
-          return { async release() {} };
+          return {
+            circuitState: "closed" as const,
+            async finalize() {
+              return "none" as const;
+            },
+            async release() {},
+          };
         },
         async assertEnabled() {},
       };

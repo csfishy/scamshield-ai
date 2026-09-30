@@ -211,6 +211,8 @@ test("real result offers safe feedback, copyable Request ID and no preview uploa
 
 for (const [code, status, message] of [
   ["client_rate_limited", 429, "操作較頻繁，請稍後再試。"],
+  ["device_quota_exceeded", 429, "今日免費分析次數已使用完畢，請明日再試。"],
+  ["ip_safety_limit_exceeded", 429, "目前網路的今日請求量已達安全上限。"],
   [
     "daily_quota_exceeded",
     429,
@@ -218,6 +220,12 @@ for (const [code, status, message] of [
   ],
   ["global_quota_exceeded", 429, "今日測試額度已用完，請明天再來。"],
   ["analysis_busy", 429, "目前分析人數較多，請稍後再試。"],
+  ["service_busy", 503, "目前分析需求較多，請稍後再試。"],
+  [
+    "provider_temporarily_unavailable",
+    503,
+    "分析服務暫時無法使用，請稍後再試。",
+  ],
   ["analysis_disabled", 503, "分析功能暫時停止，其他功能與意見回饋仍可使用。"],
   ["rate_limit_unavailable", 503, "額度服務暫時無法使用，請稍後再試。"],
   ["provider_rate_limit", 429, "AI 供應商目前請求較多，請稍後再試。"],

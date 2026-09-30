@@ -205,7 +205,7 @@ import {createOpenAIProvider} from '../../lib/server/ai/providers/openai';
 import {MODEL,PROMPT_VERSION} from '../../lib/server/config';
 import {AppError} from '../../lib/server/errors';
 export const runtime='nodejs'; export const maxDuration=30;
-const quota=()=>({async preflight(){const value=await (await fetch('http://127.0.0.1:${portOf(stub)}/quota')).json();if(value.code)throw new AppError(value.code,'rate_limit',value.code.endsWith('exceeded')?'28800':'60');return {async acquire(){return {async release(){}}},async assertEnabled(){}}}});
+const quota=()=>({async preflight(){const value=await (await fetch('http://127.0.0.1:${portOf(stub)}/quota')).json();if(value.code)throw new AppError(value.code,'rate_limit',value.code.endsWith('exceeded')?'28800':'60');return {async acquire(){return {circuitState:'closed',async finalize(){return 'none'},async release(){}}},async assertEnabled(){}}}});
 export const POST=createAnalyzeHandler({quota,config:()=>({mode:'remote',provider:'openai',model:MODEL,apiKey:'stub-only',providerTimeoutMs:15000,apiTimeoutMs:20000,promptVersion:PROMPT_VERSION}),provider:c=>createOpenAIProvider(c,(_url,init)=>fetch('http://127.0.0.1:${portOf(stub)}/responses',init))});
 export const GET=POST, HEAD=POST, OPTIONS=POST, PUT=POST, PATCH=POST, DELETE=POST;`,
   );
@@ -297,9 +297,13 @@ async function loggedEvent(
 describe("real Next.js + SDK HTTP integration", () => {
   it.each([
     ["client_rate_limited", 429],
+    ["device_quota_exceeded", 429],
+    ["ip_safety_limit_exceeded", 429],
     ["daily_quota_exceeded", 429],
     ["global_quota_exceeded", 429],
     ["analysis_busy", 429],
+    ["service_busy", 503],
+    ["provider_temporarily_unavailable", 503],
     ["analysis_disabled", 503],
     ["rate_limit_unavailable", 503],
   ] as const)(
@@ -316,7 +320,11 @@ describe("real Next.js + SDK HTTP integration", () => {
         expect(response.headers.get("cache-control")).toBe("no-store");
         expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
         expect(response.headers.get("retry-after")).toBe(
-          status === 429 ? (code.endsWith("exceeded") ? "28800" : "60") : null,
+          [429, 503].includes(status)
+            ? code.endsWith("exceeded")
+              ? "28800"
+              : "60"
+            : null,
         );
         expect(calls).toBe(before);
       } finally {

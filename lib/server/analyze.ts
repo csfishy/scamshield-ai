@@ -26,6 +26,28 @@ interface Dependencies {
   now?: () => number;
   quota?: () => QuotaService;
 }
+function isCircuitFailure(error: AppError): boolean {
+  return (
+    error.code === "provider_rate_limit" ||
+    (error.code === "provider_unavailable" &&
+      ["network", "timeout"].includes(error.kind))
+  );
+}
+
+function protectionEvent(error: AppError): AnalysisEvent["protectionEvents"] {
+  const value = {
+    client_rate_limited: "rate_limit_hit",
+    device_quota_exceeded: "device_quota_hit",
+    ip_safety_limit_exceeded: "ip_safety_limit_hit",
+    global_quota_exceeded: "global_quota_hit",
+    analysis_busy: "provider_concurrency_rejected",
+    service_busy: "provider_concurrency_rejected",
+    provider_temporarily_unavailable: "provider_cb_rejected",
+  } as const;
+  const event = value[error.code as keyof typeof value];
+  return event ? [event] : undefined;
+}
+
 // Test injection is module-local, never a public debug parameter or runtime stub mode.
 export function createAnalyzeHandler(deps: Dependencies = {}) {
   return async function analyze(request: Request): Promise<Response> {
@@ -43,7 +65,9 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
     let budget: ReturnType<typeof deadline> | undefined;
     let attempt: QuotaAttempt | undefined;
     let lease: QuotaLease | undefined;
-    let providerSettled = false;
+    let leaseFinalizationAttempted = false;
+    let finalOutcome: "provider_failure" | "neutral_failure" =
+      "neutral_failure";
     try {
       if (request.method !== "POST") {
         event.status = 405;
@@ -93,6 +117,8 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
         throw new AppError("rate_limit_unavailable", "configuration");
       lease = await attempt.acquire(budget.signal);
       event.quotaOutcome = "reserved";
+      if (lease.circuitState === "half_open")
+        event.protectionEvents = ["provider_cb_half_open"];
       await attempt.assertEnabled(lease, budget.signal);
       event.quotaOutcome = "started";
       const remaining = config.apiTimeoutMs - (now() - start) - 2000;
@@ -116,7 +142,6 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
           }),
           providerBudget.signal,
         );
-        providerSettled = true;
         checkAbort(providerBudget.signal);
         if (result.usage) {
           event.usageKnown = true;
@@ -131,6 +156,20 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
           event.textNormalizationFields = normalized.normalization.fields;
         }
         const output = normalized.result;
+        leaseFinalizationAttempted = true;
+        try {
+          const transition = await lease.finalize("success");
+          event.quotaOutcome = "committed";
+          event.leaseDisposition = "committed";
+          if (transition === "provider_cb_closed")
+            event.protectionEvents = [
+              ...(event.protectionEvents ?? []),
+              "provider_cb_closed",
+            ];
+        } catch (error) {
+          event.leaseDisposition = "release_failed";
+          throw error;
+        }
         event.status = 200;
         return new Response(JSON.stringify(output), {
           status: 200,
@@ -152,6 +191,14 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
       event.status = response.status;
       event.errorCode = safe.code;
       event.failureKind = safe.kind;
+      event.protectionEvents = [
+        ...(event.protectionEvents ?? []),
+        ...(protectionEvent(safe) ?? []),
+      ];
+      if (event.protectionEvents.length === 0)
+        event.protectionEvents = undefined;
+      if (event.providerEntered && isCircuitFailure(safe))
+        finalOutcome = "provider_failure";
       if (safe.kind === "schema") {
         event.schemaFailureStage = safe.schemaFailureStage;
         event.schemaFailureField = safe.schemaFailureField;
@@ -178,35 +225,35 @@ export function createAnalyzeHandler(deps: Dependencies = {}) {
       if (
         [
           "client_rate_limited",
+          "device_quota_exceeded",
+          "ip_safety_limit_exceeded",
           "daily_quota_exceeded",
           "global_quota_exceeded",
           "analysis_busy",
+          "service_busy",
+          "provider_temporarily_unavailable",
           "analysis_disabled",
           "rate_limit_unavailable",
         ].includes(safe.code)
       ) {
         event.quotaOutcome = "denied";
       }
-      // A received, definite Provider response can free a lease. A transport
-      // failure/abort cannot prove remote computation stopped: retain its TTL.
-      if (
-        event.providerEntered &&
-        ["rate_limit", "configuration", "schema", "refusal"].includes(safe.kind)
-      )
-        providerSettled = true;
       return response;
     } finally {
       budget?.dispose();
-      if (lease) {
-        if (!event.providerEntered || providerSettled) {
-          try {
-            await lease.release();
-            event.leaseDisposition = "released";
-          } catch {
-            event.leaseDisposition = "release_failed";
-          }
-        } else {
-          event.leaseDisposition = "held_until_expiry";
+      if (lease && !leaseFinalizationAttempted) {
+        leaseFinalizationAttempted = true;
+        try {
+          const transition = await lease.finalize(finalOutcome);
+          event.quotaOutcome = "rolled_back";
+          event.leaseDisposition = "released";
+          if (transition === "provider_cb_opened")
+            event.protectionEvents = [
+              ...(event.protectionEvents ?? []),
+              "provider_cb_opened",
+            ];
+        } catch {
+          event.leaseDisposition = "release_failed";
         }
       }
       event.durationMs = Math.max(0, now() - start);

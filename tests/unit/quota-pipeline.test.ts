@@ -10,7 +10,7 @@ import {
   parseAnalysisResponse,
   type ErrorCode,
 } from "../../lib/contracts/analysis";
-import type { QuotaService } from "../../lib/server/quota";
+import type { CircuitTransition, QuotaService } from "../../lib/server/quota";
 import type { AnalysisEvent } from "../../lib/server/telemetry";
 import { normal } from "../../fixtures/demo";
 import { png, request } from "../helpers/images";
@@ -33,21 +33,30 @@ const outcome = {
   recommendations: normal.recommendations,
 };
 
-function gate() {
+function gate(circuitState: "closed" | "half_open" = "closed") {
   const release = vi.fn(async () => {});
-  const acquire = vi.fn(async () => ({ release }));
+  const finalize = vi.fn(async (): Promise<CircuitTransition> => "none");
+  const acquire = vi.fn(async () => ({
+    circuitState,
+    finalize,
+    release,
+  }));
   const assertEnabled = vi.fn(async () => {});
   const preflight = vi.fn(async () => ({ acquire, assertEnabled }));
   const service: QuotaService = { preflight };
-  return { release, acquire, assertEnabled, preflight, service };
+  return { release, finalize, acquire, assertEnabled, preflight, service };
 }
 
 describe("quota integration into the application pipeline (test doubles, no Redis/AI)", () => {
   it.each([
     ["client_rate_limited", 429, "60"],
+    ["device_quota_exceeded", 429, "28799"],
+    ["ip_safety_limit_exceeded", 429, "28799"],
     ["daily_quota_exceeded", 429, "28799"],
     ["global_quota_exceeded", 429, "28799"],
     ["analysis_busy", 429, "59"],
+    ["service_busy", 503, "5"],
+    ["provider_temporarily_unavailable", 503, "30"],
     ["analysis_disabled", 503, undefined],
     ["rate_limit_unavailable", 503, undefined],
   ] as const)(
@@ -95,8 +104,12 @@ describe("quota integration into the application pipeline (test doubles, no Redi
 
   it.each([
     "daily_quota_exceeded",
+    "device_quota_exceeded",
+    "ip_safety_limit_exceeded",
     "global_quota_exceeded",
     "analysis_busy",
+    "service_busy",
+    "provider_temporarily_unavailable",
     "rate_limit_unavailable",
   ] as ErrorCode[])(
     "failed or uncertain admission %s never calls Provider",
@@ -113,7 +126,7 @@ describe("quota integration into the application pipeline (test doubles, no Redi
       expect((await response.json()).error.code).toBe(code);
       expect(analyze).not.toHaveBeenCalled();
       expect(q.assertEnabled).not.toHaveBeenCalled();
-      expect(q.release).not.toHaveBeenCalled();
+      expect(q.finalize).not.toHaveBeenCalled();
     },
   );
 
@@ -129,22 +142,22 @@ describe("quota integration into the application pipeline (test doubles, no Redi
     })(request(await png()));
     expect(response.status).toBe(503);
     expect(q.acquire).toHaveBeenCalledOnce();
-    expect(q.release).toHaveBeenCalledOnce();
+    expect(q.finalize).toHaveBeenCalledWith("neutral_failure");
     expect(analyze).not.toHaveBeenCalled();
     // There is deliberately no refund operation in the service interface.
   });
 
   it.each([
-    ["provider_rate_limit", "rate_limit", true],
-    ["provider_unavailable", "configuration", true],
-    ["analysis_failed", "schema", true],
-    ["provider_unavailable", "network", false],
-    ["provider_unavailable", "timeout", false],
-    ["provider_unavailable", "cancelled", false],
-    ["analysis_failed", "unknown", false],
+    ["provider_rate_limit", "rate_limit", "provider_failure"],
+    ["provider_unavailable", "configuration", "neutral_failure"],
+    ["analysis_failed", "schema", "neutral_failure"],
+    ["provider_unavailable", "network", "provider_failure"],
+    ["provider_unavailable", "timeout", "provider_failure"],
+    ["provider_unavailable", "cancelled", "neutral_failure"],
+    ["analysis_failed", "unknown", "neutral_failure"],
   ] as const)(
-    "admitted %s/%s is counted once; release=%s",
-    async (code, kind, released) => {
+    "admitted %s/%s rolls back once as %s",
+    async (code, kind, finalOutcome) => {
       const q = gate();
       const analyze = vi.fn(async () => {
         throw new AppError(code, kind);
@@ -158,11 +171,12 @@ describe("quota integration into the application pipeline (test doubles, no Redi
       })(request(await png()));
       expect(q.acquire).toHaveBeenCalledOnce();
       expect(analyze).toHaveBeenCalledOnce();
-      expect(q.release).toHaveBeenCalledTimes(released ? 1 : 0);
+      expect(q.finalize).toHaveBeenCalledOnce();
+      expect(q.finalize).toHaveBeenCalledWith(finalOutcome);
       expect(telemetry.mock.calls[0][0]).toMatchObject({
         providerEntered: true,
         usageKnown: false,
-        leaseDisposition: released ? "released" : "held_until_expiry",
+        leaseDisposition: "released",
       });
     },
   );
@@ -182,7 +196,7 @@ describe("quota integration into the application pipeline (test doubles, no Redi
     })(request(await png()));
     expect(response.status).toBe(422);
     expect(q.acquire).toHaveBeenCalledOnce();
-    expect(q.release).toHaveBeenCalledOnce();
+    expect(q.finalize).toHaveBeenCalledWith("neutral_failure");
     expect(telemetry.mock.calls[0][0]).toMatchObject({
       usageKnown: true,
       inputTokens: 100,
@@ -190,7 +204,7 @@ describe("quota integration into the application pipeline (test doubles, no Redi
     });
   });
 
-  it("cancellation after admission retains lease and never retries or refunds", async () => {
+  it("cancellation after admission releases the distributed lease and never retries", async () => {
     const q = gate();
     const controller = new AbortController();
     let started!: () => void;
@@ -214,14 +228,14 @@ describe("quota integration into the application pipeline (test doubles, no Redi
     controller.abort();
     expect((await response).status).toBe(503);
     expect(q.acquire).toHaveBeenCalledOnce();
-    expect(q.release).not.toHaveBeenCalled();
+    expect(q.finalize).toHaveBeenCalledWith("neutral_failure");
     expect(analyze).toHaveBeenCalledOnce();
     await handler(request(await png(), [], { signal: controller.signal }));
     expect(q.preflight).toHaveBeenCalledOnce();
     expect(analyze).toHaveBeenCalledOnce();
   });
 
-  it("Provider timeout retains lease until its expiry", async () => {
+  it("Provider timeout records one circuit failure and releases the lease", async () => {
     const q = gate();
     const analyze = vi.fn(async () => new Promise<never>(() => {}));
     const response = await createAnalyzeHandler({
@@ -231,13 +245,15 @@ describe("quota integration into the application pipeline (test doubles, no Redi
       telemetry: () => {},
     })(request(await png()));
     expect(response.status).toBe(503);
-    expect(q.release).not.toHaveBeenCalled();
+    expect(q.finalize).toHaveBeenCalledWith("provider_failure");
     expect(analyze).toHaveBeenCalledOnce();
   });
 
-  it("cleanup and logging failures never alter successful HTTP or repeat Provider", async () => {
+  it("a commit failure fails closed without repeating Provider", async () => {
     const q = gate();
-    q.release.mockRejectedValue(new Error("private-redis-exception"));
+    q.finalize.mockRejectedValue(
+      new AppError("rate_limit_unavailable", "network"),
+    );
     const analyze = vi.fn(async () => ({ outcome }));
     let logged: AnalysisEvent | undefined;
     const response = await createAnalyzeHandler({
@@ -249,8 +265,8 @@ describe("quota integration into the application pipeline (test doubles, no Redi
         throw new Error("logging");
       },
     })(request(await png()));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(normal);
+    expect(response.status).toBe(503);
+    expect((await response.json()).error.code).toBe("rate_limit_unavailable");
     expect(analyze).toHaveBeenCalledOnce();
     expect(logged).toMatchObject({
       usageKnown: false,
@@ -271,5 +287,55 @@ describe("quota integration into the application pipeline (test doubles, no Redi
     })(request(await png()));
     expect(response.status).toBe(503);
     expect(q.acquire).not.toHaveBeenCalled();
+  });
+
+  it("commits exactly one successful normalized analysis", async () => {
+    const q = gate();
+    const response = await createAnalyzeHandler({
+      config: () => config,
+      quota: () => q.service,
+      provider: () => ({ analyze: async () => ({ outcome }) }),
+      telemetry: () => {},
+    })(request(await png()));
+    expect(response.status).toBe(200);
+    expect(q.finalize).toHaveBeenCalledOnce();
+    expect(q.finalize).toHaveBeenCalledWith("success");
+  });
+
+  it("logs half-open and close transitions without exposing circuit internals", async () => {
+    const q = gate("half_open");
+    q.finalize.mockResolvedValue("provider_cb_closed");
+    const telemetry = vi.fn();
+    const response = await createAnalyzeHandler({
+      config: () => config,
+      quota: () => q.service,
+      provider: () => ({ analyze: async () => ({ outcome }) }),
+      telemetry,
+    })(request(await png()));
+    expect(response.status).toBe(200);
+    expect(telemetry.mock.calls[0][0]).toMatchObject({
+      protectionEvents: ["provider_cb_half_open", "provider_cb_closed"],
+    });
+  });
+
+  it("logs one circuit-open transition for one qualifying request failure", async () => {
+    const q = gate();
+    q.finalize.mockResolvedValue("provider_cb_opened");
+    const telemetry = vi.fn();
+    const response = await createAnalyzeHandler({
+      config: () => config,
+      quota: () => q.service,
+      provider: () => ({
+        analyze: async () => {
+          throw new AppError("provider_unavailable", "network");
+        },
+      }),
+      telemetry,
+    })(request(await png()));
+    expect(response.status).toBe(503);
+    expect(q.finalize).toHaveBeenCalledWith("provider_failure");
+    expect(telemetry.mock.calls[0][0]).toMatchObject({
+      protectionEvents: ["provider_cb_opened"],
+    });
   });
 });

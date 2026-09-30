@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import type { QuotaConfig } from "../../lib/server/quota-config";
 import {
   ACQUIRE_SCRIPT,
+  FINALIZE_SCRIPT,
   PREFLIGHT_SCRIPT,
   RELEASE_SCRIPT,
   START_SCRIPT,
@@ -17,6 +18,7 @@ export const SEED_HASH_SCRIPT = `redis.call('HSET', KEYS[1], unpack(ARGV)); redi
 export const SEED_ZSET_SCRIPT = `redis.call('ZADD', KEYS[1], unpack(ARGV)); redis.call('PEXPIRE', KEYS[1], 600000); return 1`;
 const allowedScripts = new Set([
   ACQUIRE_SCRIPT,
+  FINALIZE_SCRIPT,
   PREFLIGHT_SCRIPT,
   RELEASE_SCRIPT,
   START_SCRIPT,
@@ -154,12 +156,18 @@ export function createTestConfig(
     hmacSecret: randomUUID() + randomUUID(),
     // Identity is injected only into this private test harness; no public test mode.
     trustedProxy: "vercel",
-    windowLimit: 3,
-    ipDailyLimit: 10,
-    globalDailyLimit: 200,
-    concurrencyLimit: 3,
+    windowLimit: 5,
+    deviceDailyLimit: 30,
+    ipDailyLimit: 150,
+    globalDailyLimit: 3000,
+    concurrencyLimit: 5,
     redisTimeoutMs: 1000,
     leaseMs: 60000,
+    circuitBreakerEnabled: true,
+    circuitBreakerFailureThreshold: 5,
+    circuitBreakerWindowSeconds: 60,
+    circuitBreakerOpenSeconds: 30,
+    circuitBreakerHalfOpenMaxProbes: 1,
     controlKeySuffix: "analysis-enabled",
   };
 }

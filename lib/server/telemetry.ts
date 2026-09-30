@@ -47,11 +47,29 @@ const eventSchema = z
         "preflight_allowed",
         "reserved",
         "started",
+        "committed",
+        "rolled_back",
         "denied",
       ])
       .optional(),
+    protectionEvents: z
+      .array(
+        z.enum([
+          "rate_limit_hit",
+          "device_quota_hit",
+          "ip_safety_limit_hit",
+          "global_quota_hit",
+          "provider_concurrency_rejected",
+          "provider_cb_opened",
+          "provider_cb_half_open",
+          "provider_cb_closed",
+          "provider_cb_rejected",
+        ]),
+      )
+      .max(3)
+      .optional(),
     leaseDisposition: z
-      .enum(["released", "held_until_expiry", "release_failed"])
+      .enum(["committed", "released", "release_failed"])
       .optional(),
     textNormalizationApplied: z.boolean().optional(),
     textNormalizationKind: z.literal("serialization_tail").optional(),

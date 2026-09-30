@@ -10,12 +10,19 @@ import {
 } from "./quota-config";
 import {
   ACQUIRE_SCRIPT,
+  FINALIZE_SCRIPT,
   PREFLIGHT_SCRIPT,
-  RELEASE_SCRIPT,
   START_SCRIPT,
 } from "./quota-scripts";
 
+export type QuotaFinalOutcome =
+  "success" | "provider_failure" | "neutral_failure";
+export type CircuitTransition =
+  "none" | "provider_cb_opened" | "provider_cb_closed";
 export interface QuotaLease {
+  readonly circuitState: "closed" | "half_open";
+  finalize(outcome: QuotaFinalOutcome): Promise<CircuitTransition>;
+  /** Idempotent compatibility helper: release without committing success. */
   release(): Promise<void>;
 }
 export interface QuotaAttempt {
@@ -147,11 +154,19 @@ export function createRedisExecutor(
 
 const limits = [
   "client_rate_limited",
+  "device_quota_exceeded",
+  "ip_safety_limit_exceeded",
   "daily_quota_exceeded",
   "global_quota_exceeded",
   "analysis_busy",
+  "service_busy",
+  "provider_temporarily_unavailable",
 ] as const;
-function accept(result: unknown, allowed: readonly string[]): void {
+function accept(
+  result: unknown,
+  allowed: readonly string[],
+  successes: readonly string[] = ["ok"],
+): string {
   if (
     !Array.isArray(result) ||
     result.length !== 2 ||
@@ -162,7 +177,7 @@ function accept(result: unknown, allowed: readonly string[]): void {
   )
     throw unavailable();
   const [code, retry] = result as [string, number];
-  if (code === "ok" && retry === 0) return;
+  if (successes.includes(code) && retry === 0) return code;
   if (code === "analysis_disabled" && retry === 0)
     throw new AppError("analysis_disabled", "configuration");
   if (
@@ -176,6 +191,32 @@ function accept(result: unknown, allowed: readonly string[]): void {
       String(retry),
     );
   throw unavailable();
+}
+
+const deviceHeader = "x-scamshield-device-id";
+const uuidV4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function identityCodes(
+  request: Request,
+  config: QuotaConfig,
+): { ipCode: string; deviceCode: string } {
+  const ip = resolveQuotaIp(request, config);
+  const ipCode = createHmac("sha256", config.hmacSecret)
+    .update("ip\0")
+    .update(ip)
+    .digest("hex");
+  const supplied = request.headers.get(deviceHeader);
+  if (supplied !== null && !uuidV4.test(supplied))
+    throw new AppError("invalid_request", "input");
+  // Legacy/non-browser clients fall back to a privacy-safe IP-derived device
+  // bucket. They remain usable, while the web client gets an independent UUID.
+  const stable = supplied?.toLowerCase() ?? `legacy-ip:${ip}`;
+  const deviceCode = createHmac("sha256", config.hmacSecret)
+    .update("device\0")
+    .update(stable)
+    .digest("hex");
+  return { ipCode, deviceCode };
 }
 
 export function createQuotaService(
@@ -201,50 +242,110 @@ export function createQuotaService(
       if (!config.deploymentEnabled)
         throw new AppError("analysis_disabled", "configuration");
       if (!/^[0-9a-f-]{36}$/i.test(requestId)) throw unavailable();
-      const ip = resolveQuotaIp(request, config);
-      const code = createHmac("sha256", config.hmacSecret)
-        .update(ip)
-        .digest("hex");
+      const { ipCode, deviceCode } = identityCodes(request, config);
       accept(
         await run(
           PREFLIGHT_SCRIPT,
-          [control, `${prefix}:window:${code}`],
-          [requestId, String(config.windowLimit)],
+          [
+            control,
+            `${prefix}:rate:ip:${ipCode}:minute`,
+            `${prefix}:quota:ip:${ipCode}:day`,
+          ],
+          [requestId, String(config.windowLimit), String(config.ipDailyLimit)],
           signal,
         ),
-        ["client_rate_limited"],
+        ["client_rate_limited", "ip_safety_limit_exceeded"],
       );
-      const leases = `${prefix}:leases`,
-        receipt = `${prefix}:receipt:${requestId}`;
+      const deviceCounter = `${prefix}:quota:device:${deviceCode}:day`,
+        deviceReservations = `${deviceCounter}:reservations`,
+        globalCounter = `${prefix}:quota:global:day`,
+        globalReservations = `${prefix}:quota:global:reservations`,
+        leases = `${prefix}:provider:concurrency`,
+        receipt = `${prefix}:provider:lease:${requestId}`,
+        cbState = `${prefix}:provider:cb:state`,
+        cbFailures = `${prefix}:provider:cb:failures`,
+        cbProbes = `${prefix}:provider:cb:half-open-probes`;
       const owners = new WeakMap<QuotaLease, string>();
       const token = randomUUID();
       return {
         async acquire(acquireSignal) {
-          accept(
+          const admission = accept(
             await run(
               ACQUIRE_SCRIPT,
               [
                 control,
-                `${prefix}:daily:${code}`,
-                `${prefix}:daily:global`,
+                deviceCounter,
+                deviceReservations,
+                globalCounter,
+                globalReservations,
                 leases,
                 receipt,
+                cbState,
+                cbFailures,
+                cbProbes,
               ],
               [
                 token,
-                String(config.ipDailyLimit),
+                String(config.deviceDailyLimit),
                 String(config.globalDailyLimit),
                 String(config.concurrencyLimit),
                 String(config.leaseMs),
+                config.circuitBreakerEnabled ? "1" : "0",
+                String(config.circuitBreakerFailureThreshold),
+                String(config.circuitBreakerWindowSeconds * 1000),
+                String(config.circuitBreakerOpenSeconds * 1000),
+                String(config.circuitBreakerHalfOpenMaxProbes),
               ],
               acquireSignal,
             ),
-            limits,
+            [
+              "device_quota_exceeded",
+              "global_quota_exceeded",
+              "service_busy",
+              "provider_temporarily_unavailable",
+            ],
+            ["ok", "ok_half_open"],
           );
+          let finalization: Promise<CircuitTransition> | undefined;
+          const finish = (outcome: QuotaFinalOutcome) => {
+            finalization ??= (async () => {
+              const result = accept(
+                await run(
+                  FINALIZE_SCRIPT,
+                  [
+                    deviceCounter,
+                    deviceReservations,
+                    globalCounter,
+                    globalReservations,
+                    leases,
+                    receipt,
+                    cbState,
+                    cbFailures,
+                    cbProbes,
+                  ],
+                  [
+                    token,
+                    outcome,
+                    config.circuitBreakerEnabled ? "1" : "0",
+                    String(config.circuitBreakerFailureThreshold),
+                    String(config.circuitBreakerWindowSeconds * 1000),
+                    String(config.circuitBreakerOpenSeconds * 1000),
+                  ],
+                ),
+                [],
+                ["ok", "ok_cb_opened", "ok_cb_closed"],
+              );
+              if (result === "ok_cb_opened") return "provider_cb_opened";
+              if (result === "ok_cb_closed") return "provider_cb_closed";
+              return "none";
+            })();
+            return finalization;
+          };
           const lease: QuotaLease = {
+            circuitState: admission === "ok_half_open" ? "half_open" : "closed",
+            finalize: finish,
             async release() {
-              const result = await run(RELEASE_SCRIPT, [leases], [token]);
-              if (result !== 0 && result !== 1) throw unavailable();
+              await finish("neutral_failure");
             },
           };
           owners.set(lease, token);
@@ -257,7 +358,7 @@ export function createQuotaService(
             await run(
               START_SCRIPT,
               [control, leases, receipt],
-              [owner],
+              [owner, "25000"],
               startSignal,
             ),
             [],

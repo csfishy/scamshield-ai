@@ -44,6 +44,7 @@ API key 不進 repository；Remote 環境仍須由部署者安全設定憑證與
 | [Software Design Document](docs/sdd.md) | 模組、資料流、AI rubric、timeout、設定、ADR 與待決清單 |
 | [Test Plan](docs/test-plan.md) | 需求追溯、測試案例、AI holdout、release gates |
 | [Deployment Runbook](docs/deployment-runbook.md) | Next.js 初始化、Vercel、PWA 遷移、發布與回復 |
+| [Production Resilience](docs/production-resilience.md) | 5/min、成功額度 reservation、distributed concurrency、circuit breaker 與調整說明 |
 | [Public Beta Readiness](docs/public-beta-readiness.md) | 目前分支／Production分層狀態與保留的第一階段本機證據 |
 | [Privacy Operations](docs/privacy-operations.md) | 90天回饋政策、公開Email、刪除申請與管理者人工清理／副本處理 |
 | [iPhone／PWA Acceptance](docs/iphone-pwa-acceptance.md) | 真機操作步驟與證據模板；目前NOT_RUN |
@@ -113,9 +114,11 @@ npm run test:e2e
 
 Beta 必要設定詳見 [.env.example](.env.example) 與 [Runbook 第 11 節](docs/deployment-runbook.md#11-beta-設定與操作2026-09-29)。新版本缺少安全設定時不預設放行付費分析；Remote 需要部署啟用、可信 IP 設定、獨立 namespace、Redis 憑證、HMAC secret 及正確的執行期控制鍵。Google 表單／Email 是非秘密設定，仍以 server allowlist props 提供給頁面。不要將 secrets 改為 `NEXT_PUBLIC_*`。
 
-### Beta 使用政策
+### Production 流量與 Provider 韌性政策
 
-預設同一 IP 在滑動 60 秒最多 3 次 POST、每天最多 10 次分析嘗試；全站每天最多 200 次、同時最多 3 個有效分析租約。日額度在台北時間 00:00 重置。圖片驗證通過且獲准進入 AI 流程才扣日額度；取消、逾時、資訊不足或 Provider 失敗不自動退還。這不是保證每天有 10 次成功分析，同一家庭、公司或公共網路可能共用額度。
+預設同一 HMAC IP 來源在滑動 60 秒最多 5 次 POST；每個隨機匿名裝置每日 30 次成功分析、每個 IP 每日 150 次請求安全上限、全站每日 3,000 次成功分析，並且全站最多 5 個有效 Provider 租約。日額度以 Redis TIME 在台北時間 00:00 重置。裝置與全站額度先原子 reservation，只有通過 strict normalization 的 200 分析結果才 commit；validation、資訊不足、取消、逾時、Provider 錯誤、並行拒絕與 circuit 拒絕都不消耗成功額度。IP 上限仍會計入已通過 preflight 的無效上傳，避免大量濫用。
+
+網頁使用 `crypto.randomUUID()` 建立匿名裝置 ID 並保存於同來源 `localStorage`；不使用瀏覽器指紋。無法取得裝置 ID 的舊 client 退回 HMAC IP-derived 裝置 bucket。Redis-backed circuit breaker 預設在 60 秒內 5 次 qualifying Provider failure 後 OPEN 30 秒，之後只允許 1 個 HALF_OPEN probe；OpenAI adapter 明確 `maxRetries:0`，因此每個使用者請求最多一次 Provider call。Redis 無法確認 admission、quota、concurrency 或 circuit state 時一律 fail closed，不會退回 process-local 或 unlimited 模式。完整可調參數見 [.env.example](.env.example)。
 
 Google表單只在使用者點選後開啟，可預填Request ID、版本與回饋類型；缺少表單時不使用假連結。一般聯絡、Privacy疑問、回饋刪除或Beta問題可寄至 **cs.sakana@gmail.com**，Privacy頁提供mailto及複製。這是公開產品資訊，不是secret；表單中的使用者Email仍是選填私人資料。
 
@@ -131,7 +134,7 @@ Google表單只在使用者點選後開啟，可預填Request ID、版本與回�
 
 - 僅接受 `POST multipart/form-data`；`image` 為必要的單張 JPEG／PNG，`source` 可為 `image`／`screenshot`（預設 `image`），`language` 預設 `zh-TW`。`source` 與 `language` 是分析 metadata，不是自由文字訊息輸入。
 - 圖片上限 4 MiB，request body 上限 4,300,000 bytes；每邊最多 12,000 px、總像素最多 24,000,000，動畫或多 frame 圖片不接受。
-- Remote 流程為設定／來源 IP／短期防濫用 → 圖片驗證／重新編碼 → 原子取得日額度與租約、檢查執行期開關 → OpenAI Provider → strict normalization → JSON 回應。成功六欄結構不變。
+- Remote 流程為設定／來源 IP 短窗與 IP safety preflight → 圖片驗證／重新編碼 → 原子取得 device/global success reservation、distributed concurrency lease 與 circuit permission → 檢查執行期開關 → OpenAI Provider → strict normalization → 原子 commit 或 rollback → JSON 回應。成功六欄結構不變。
 - Provider timeout 預設 20 秒、application deadline 25 秒、route maxDuration 30 秒。Provider 會依剩餘 API 預算縮短，保留至少 2 秒收尾；增加等待時間不是 retry，每個 request 仍最多呼叫 Provider 一次。既有 Production timeout 環境值須同步更新並重新部署。
 - 應用程式可控回應均為 JSON，包含 `Cache-Control: no-store` 與 `X-Request-Id`。錯誤依情況回 400／413／415／422／429／500／503；非 `POST` 回 405 並標示 `Allow: POST`。
 
@@ -148,7 +151,7 @@ Vercel以`vercel.json`設定Next.js、`npm ci`與`npm run build`。每次部署�
 - 模型結果可能誤判；風險分數不是機率，低風險不是安全保證。
 - 應用程式不持久保存截圖，但 Provider／平台保留政策仍需另行確認。
 - IP 限制只能降低一般濫用，不能代表已抵禦 VPN 輪換、分散式 bot 或 DDoS；全站配額亦可能被惡意耗盡。較大規模分享前依流量評估平台防護、WAF 或具伺服器端驗證的 CAPTCHA。
-- 每日200次是分析嘗試上限，不是固定金額保證；Redis淘汰／持久性、Provider支出限制、AI品質、實機及每次部署gate均須分層核對。Production非AI驗收證據已存在，仍不代表允許付費AI、發布本分支或公開Beta。
+- 每日3,000次是成功分析 safety ceiling，不是固定金額保證；Provider 仍可能在成功 commit 前產生成本。匿名裝置 ID 可被清除或輪換，IP safety guard 只能降低一般濫用，不能取代 WAF／CAPTCHA。Redis淘汰／持久性、Provider帳號支出限制、AI品質、實機及每次部署gate仍須分層核對。
 
 上述未納入功能依產品驗證再排入後續，不列入三日交付。
 

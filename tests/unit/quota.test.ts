@@ -15,6 +15,7 @@ import {
 } from "../../lib/server/quota";
 import {
   ACQUIRE_SCRIPT,
+  FINALIZE_SCRIPT,
   PREFLIGHT_SCRIPT,
   RELEASE_SCRIPT,
   START_SCRIPT,
@@ -37,10 +38,13 @@ const config = (changes: Partial<QuotaConfig> = {}) => ({
   ...changes,
 });
 const signal = () => new AbortController().signal;
-const request = (ip = "192.0.2.1") =>
+const request = (ip = "192.0.2.1", deviceId?: string) =>
   new Request("http://localhost/analyze", {
     method: "POST",
-    headers: { "x-vercel-forwarded-for": ip },
+    headers: {
+      "x-vercel-forwarded-for": ip,
+      ...(deviceId ? { "x-scamshield-device-id": deviceId } : {}),
+    },
   });
 
 // This is an application-logic test double, NOT evidence of Redis/Lua atomicity.
@@ -48,13 +52,22 @@ class QuotaModel {
   now = Date.parse("2026-09-29T15:59:00Z");
   enabled = true;
   windows = new Map<string, { id: string; time: number }[]>();
+  ipDaily = new Map<string, { day: number; count: number }>();
   daily = new Map<string, { day: number; count: number }>();
+  reservations = new Map<string, Map<string, number>>();
   leases = new Map<string, number>();
-  receipts = new Map<string, { token: string; state: string }>();
+  receipts = new Map<
+    string,
+    { token: string; state: string; day: number; probe: number }
+  >();
+  cbState: "CLOSED" | "OPEN" | "HALF_OPEN" = "CLOSED";
+  cbOpenedAt = 0;
+  failures: number[] = [];
+  probes = new Map<string, number>();
   execute: RedisExecutor = async (script, keys, args) => {
     if (script === RELEASE_SCRIPT) return this.leases.delete(args[0]) ? 1 : 0;
-    if (!this.enabled) return ["analysis_disabled", 0];
     if (script === PREFLIGHT_SCRIPT) {
+      if (!this.enabled) return ["analysis_disabled", 0];
       const window = (this.windows.get(keys[1]) ?? []).filter(
         (x) => x.time > this.now - 60000,
       );
@@ -64,48 +77,155 @@ class QuotaModel {
           "client_rate_limited",
           Math.max(1, Math.ceil((window[0].time + 60000 - this.now) / 1000)),
         ];
+      const day = Math.floor((this.now + 28800000) / 86400000);
+      const reset = (day + 1) * 86400000 - 28800000;
+      const ip =
+        this.ipDaily.get(keys[2])?.day === day
+          ? this.ipDaily.get(keys[2])!.count
+          : 0;
+      if (ip >= Number(args[2]))
+        return [
+          "ip_safety_limit_exceeded",
+          Math.ceil((reset - this.now) / 1000),
+        ];
       window.push({ id: args[0], time: this.now });
       this.windows.set(keys[1], window);
+      this.ipDaily.set(keys[2], { day, count: ip + 1 });
       return ["ok", 0];
     }
     if (script === ACQUIRE_SCRIPT) {
-      if (this.receipts.has(keys[4])) return ["unavailable", 0];
+      if (!this.enabled) return ["analysis_disabled", 0];
+      if (this.receipts.has(keys[6])) return ["unavailable", 0];
       const day = Math.floor((this.now + 28800000) / 86400000);
       const reset = (day + 1) * 86400000 - 28800000;
       const count = (key: string) =>
         this.daily.get(key)?.day === day ? this.daily.get(key)!.count : 0;
-      if (count(keys[1]) >= Number(args[1]))
-        return ["daily_quota_exceeded", Math.ceil((reset - this.now) / 1000)];
-      if (count(keys[2]) >= Number(args[2]))
+      const reserved = (key: string) => {
+        const entries = this.reservations.get(key) ?? new Map();
+        for (const [token, expiry] of entries)
+          if (expiry <= this.now) entries.delete(token);
+        this.reservations.set(key, entries);
+        return entries;
+      };
+      const deviceReservations = reserved(keys[2]);
+      const globalReservations = reserved(keys[4]);
+      if (count(keys[1]) + deviceReservations.size >= Number(args[1]))
+        return ["device_quota_exceeded", Math.ceil((reset - this.now) / 1000)];
+      if (count(keys[3]) + globalReservations.size >= Number(args[2]))
         return ["global_quota_exceeded", Math.ceil((reset - this.now) / 1000)];
       for (const [token, until] of this.leases)
         if (until <= this.now) this.leases.delete(token);
       if (this.leases.size >= Number(args[3]))
         return [
-          "analysis_busy",
+          "service_busy",
           Math.ceil(
-            ([...this.leases.values()].sort((a, b) => a - b)[
-              this.leases.size - Number(args[3])
-            ] -
-              this.now) /
+            ([...this.leases.values()].sort((a, b) => a - b)[0] - this.now) /
               1000,
           ),
         ];
-      this.daily.set(keys[1], { day, count: count(keys[1]) + 1 });
-      this.daily.set(keys[2], { day, count: count(keys[2]) + 1 });
-      this.leases.set(args[0], this.now + Number(args[4]));
-      this.receipts.set(keys[4], { token: args[0], state: "acquired" });
-      return ["ok", 0];
+      let probe = 0;
+      if (args[5] === "1") {
+        this.failures = this.failures.filter(
+          (time) => time > this.now - Number(args[7]),
+        );
+        for (const [probeToken, expiry] of this.probes)
+          if (expiry <= this.now) this.probes.delete(probeToken);
+        if (this.cbState === "OPEN") {
+          if (this.now < this.cbOpenedAt + Number(args[8]))
+            return [
+              "provider_temporarily_unavailable",
+              Math.max(
+                1,
+                Math.ceil(
+                  (this.cbOpenedAt + Number(args[8]) - this.now) / 1000,
+                ),
+              ),
+            ];
+          this.cbState = "HALF_OPEN";
+        }
+        if (this.cbState === "HALF_OPEN") {
+          if (this.probes.size >= Number(args[9]))
+            return ["provider_temporarily_unavailable", 1];
+          probe = 1;
+        }
+      }
+      this.daily.set(keys[1], { day, count: count(keys[1]) });
+      this.daily.set(keys[3], { day, count: count(keys[3]) });
+      const expiry = this.now + Number(args[4]);
+      deviceReservations.set(args[0], expiry);
+      globalReservations.set(args[0], expiry);
+      this.leases.set(args[0], expiry);
+      this.receipts.set(keys[6], {
+        token: args[0],
+        state: "acquired",
+        day,
+        probe,
+      });
+      if (probe) this.probes.set(args[0], expiry);
+      return [probe ? "ok_half_open" : "ok", 0];
     }
     if (script === START_SCRIPT) {
+      if (!this.enabled) return ["analysis_disabled", 0];
       const receipt = this.receipts.get(keys[2]);
       if (
-        (this.leases.get(args[0]) ?? 0) <= this.now + 25000 ||
+        (this.leases.get(args[0]) ?? 0) <= this.now + Number(args[1]) ||
         receipt?.token !== args[0] ||
         receipt.state !== "acquired"
       )
         return ["unavailable", 0];
       receipt.state = "started";
+      return ["ok", 0];
+    }
+    if (script === FINALIZE_SCRIPT) {
+      const receipt = this.receipts.get(keys[5]);
+      if (
+        receipt?.token !== args[0] ||
+        !["acquired", "started"].includes(receipt.state)
+      )
+        return ["unavailable", 0];
+      const active =
+        (this.reservations.get(keys[1])?.get(args[0]) ?? 0) > this.now &&
+        (this.reservations.get(keys[3])?.get(args[0]) ?? 0) > this.now;
+      this.reservations.get(keys[1])?.delete(args[0]);
+      this.reservations.get(keys[3])?.delete(args[0]);
+      this.leases.delete(args[0]);
+      this.probes.delete(args[0]);
+      receipt.state = "finalized";
+      if (args[1] === "success") {
+        if (!active) return ["unavailable", 0];
+        for (const key of [keys[0], keys[2]]) {
+          const value = this.daily.get(key)!;
+          if (value.day === receipt.day) value.count++;
+        }
+      }
+      if (args[2] === "1") {
+        if (
+          args[1] === "success" &&
+          receipt.probe === 1 &&
+          this.cbState === "HALF_OPEN"
+        ) {
+          this.cbState = "CLOSED";
+          this.failures = [];
+          this.probes.clear();
+          return ["ok_cb_closed", 0];
+        }
+        if (args[1] === "provider_failure") {
+          this.failures = this.failures.filter(
+            (time) => time > this.now - Number(args[4]),
+          );
+          this.failures.push(this.now);
+          if (
+            (receipt.probe === 1 && this.cbState !== "OPEN") ||
+            (this.cbState === "CLOSED" &&
+              this.failures.length >= Number(args[3]))
+          ) {
+            this.cbState = "OPEN";
+            this.cbOpenedAt = this.now;
+            this.probes.clear();
+            return ["ok_cb_opened", 0];
+          }
+        }
+      }
       return ["ok", 0];
     }
     throw new Error("Unexpected test script");
@@ -116,10 +236,10 @@ const setup = (changes: Partial<QuotaConfig> = {}) => {
   const service = createQuotaService(config(changes), {
     execute: model.execute,
   });
-  const preflight = (ip?: string) =>
-    service.preflight(request(ip), randomUUID(), signal());
-  const acquire = async (ip?: string) =>
-    (await preflight(ip)).acquire(signal());
+  const preflight = (ip?: string, deviceId?: string) =>
+    service.preflight(request(ip, deviceId), randomUUID(), signal());
+  const acquire = async (ip?: string, deviceId?: string) =>
+    (await preflight(ip, deviceId)).acquire(signal());
   return { model, service, preflight, acquire };
 };
 
@@ -151,10 +271,27 @@ describe("quota configuration and trusted identity", () => {
     { QUOTA_WINDOW_LIMIT: "0" },
     { QUOTA_LEASE_MS: "20000" },
     { QUOTA_REDIS_TIMEOUT_MS: "99999" },
+    { PROVIDER_CB_ENABLED: "yes" },
+    { PROVIDER_CB_FAILURE_THRESHOLD: "0" },
+    { PROVIDER_CB_HALF_OPEN_MAX_PROBES: "0" },
   ])("rejects unsafe configuration %#", (changes) => {
     expect(() => getQuotaConfig({ ...env, ...changes })).toThrow(
       "rate_limit_unavailable",
     );
+  });
+  it("uses the production hardening defaults", () => {
+    expect(getQuotaConfig(env)).toMatchObject({
+      windowLimit: 5,
+      deviceDailyLimit: 30,
+      ipDailyLimit: 150,
+      globalDailyLimit: 3000,
+      concurrencyLimit: 5,
+      circuitBreakerEnabled: true,
+      circuitBreakerFailureThreshold: 5,
+      circuitBreakerWindowSeconds: 60,
+      circuitBreakerOpenSeconds: 30,
+      circuitBreakerHalfOpenMaxProbes: 1,
+    });
   });
   it("accepts a fixed development-only IP without trusting request headers", () => {
     const cfg = getQuotaConfig({
@@ -241,12 +378,27 @@ describe("quota configuration and trusted identity", () => {
     expect(execute.mock.calls[0][1]).toEqual(execute.mock.calls[1][1]);
     expect(execute.mock.calls[2][1]).not.toEqual(execute.mock.calls[3][1]);
   });
+  it("rejects malformed device IDs before Redis and never puts a UUID in keys", async () => {
+    const execute = vi.fn<RedisExecutor>().mockResolvedValue(["ok", 0]);
+    const service = createQuotaService(config(), { execute });
+    await expect(
+      service.preflight(
+        request("192.0.2.1", "not-a-uuid"),
+        randomUUID(),
+        signal(),
+      ),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+    expect(execute).not.toHaveBeenCalled();
+    const id = "11111111-1111-4111-8111-111111111111";
+    await service.preflight(request("192.0.2.1", id), randomUUID(), signal());
+    expect(JSON.stringify(execute.mock.calls)).not.toContain(id);
+  });
 });
 
 describe("application quota behavior using a test double", () => {
   it("enforces a sliding minute and accurate retry boundary", async () => {
     const { preflight, model } = setup();
-    for (let i = 0; i < 3; i++) await preflight();
+    for (let i = 0; i < 5; i++) await preflight();
     await expect(preflight()).rejects.toMatchObject({
       code: "client_rate_limited",
       retryAfter: "60",
@@ -261,7 +413,7 @@ describe("application quota behavior using a test double", () => {
     const lease = await acquire();
     await lease.release();
     await expect(acquire()).rejects.toMatchObject({
-      code: "daily_quota_exceeded",
+      code: "ip_safety_limit_exceeded",
       retryAfter: "60",
     });
     const other = await acquire("192.0.2.2");
@@ -275,7 +427,7 @@ describe("application quota behavior using a test double", () => {
   });
   it("global quota rejects another IP without a partial IP debit", async () => {
     const { acquire, model } = setup({ globalDailyLimit: 1 });
-    await (await acquire()).release();
+    await (await acquire()).finalize("success");
     const before = [...model.daily.entries()];
     await expect(acquire("192.0.2.2")).rejects.toMatchObject({
       code: "global_quota_exceeded",
@@ -283,13 +435,26 @@ describe("application quota behavior using a test double", () => {
     });
     expect([...model.daily.entries()]).toEqual(before);
   });
+  it("commits device success quota, isolates devices, and rolls back failures", async () => {
+    const { acquire } = setup({ deviceDailyLimit: 1, ipDailyLimit: 20 });
+    const firstDevice = "11111111-1111-4111-8111-111111111111";
+    const secondDevice = "22222222-2222-4222-8222-222222222222";
+    await (
+      await acquire("192.0.2.1", firstDevice)
+    ).finalize("provider_failure");
+    await (await acquire("192.0.2.1", firstDevice)).finalize("success");
+    await expect(acquire("192.0.2.1", firstDevice)).rejects.toMatchObject({
+      code: "device_quota_exceeded",
+    });
+    await expect(acquire("192.0.2.1", secondDevice)).resolves.toBeDefined();
+  });
   it("valid concurrency leases block admission without debiting; ownership release is idempotent", async () => {
     const { acquire, model } = setup({ concurrencyLimit: 2 });
     const first = await acquire(),
       second = await acquire("192.0.2.2");
     const before = [...model.daily.entries()];
     await expect(acquire("192.0.2.3")).rejects.toMatchObject({
-      code: "analysis_busy",
+      code: "service_busy",
       retryAfter: "60",
     });
     expect([...model.daily.entries()]).toEqual(before);
@@ -300,14 +465,14 @@ describe("application quota behavior using a test double", () => {
     expect(model.leases.size).toBe(2);
     await second.release();
   });
-  it("a crashed instance's lease expires while its daily debit remains", async () => {
+  it("a crashed instance's lease and success reservation expire without a debit", async () => {
     const { acquire, model } = setup({ concurrencyLimit: 1 });
     model.now = Date.parse("2026-09-29T10:00:00Z");
     await acquire();
     model.now += 60000;
     await acquire();
     expect(model.leases.size).toBe(1);
-    expect([...model.daily.values()].every((value) => value.count === 2)).toBe(
+    expect([...model.daily.values()].every((value) => value.count === 0)).toBe(
       true,
     );
   });
@@ -328,9 +493,9 @@ describe("application quota behavior using a test double", () => {
     await expect(attempt.assertEnabled(lease, signal())).rejects.toThrow(
       "rate_limit_unavailable",
     );
-    expect([...model.daily.values()].every((x) => x.count === 1)).toBe(true);
+    expect([...model.daily.values()].every((x) => x.count === 0)).toBe(true);
   });
-  it("runtime stop is checked again before Provider; it never refunds daily admission", async () => {
+  it("runtime stop is checked again before Provider and rolls back reservations", async () => {
     const { preflight, model } = setup();
     const attempt = await preflight(),
       lease = await attempt.acquire(signal());
@@ -339,7 +504,7 @@ describe("application quota behavior using a test double", () => {
       code: "analysis_disabled",
     });
     await lease.release();
-    expect([...model.daily.values()].every((x) => x.count === 1)).toBe(true);
+    expect([...model.daily.values()].every((x) => x.count === 0)).toBe(true);
     await expect(preflight()).rejects.toMatchObject({
       code: "analysis_disabled",
     });
@@ -349,7 +514,14 @@ describe("application quota behavior using a test double", () => {
     const attempt = await preflight(),
       lease = await attempt.acquire(signal());
     await expect(
-      attempt.assertEnabled({ release: async () => {} }, signal()),
+      attempt.assertEnabled(
+        {
+          circuitState: "closed",
+          finalize: async () => "none",
+          release: async () => {},
+        },
+        signal(),
+      ),
     ).rejects.toThrow("rate_limit_unavailable");
     model.now += 60001;
     await expect(attempt.assertEnabled(lease, signal())).rejects.toThrow(
@@ -373,10 +545,59 @@ describe("application quota behavior using a test double", () => {
     model.leases.set("third", model.now + 60000);
     const attempt = await service.preflight(request(), randomUUID(), signal());
     await expect(attempt.acquire(signal())).rejects.toMatchObject({
-      code: "analysis_busy",
-      retryAfter: "60",
+      code: "service_busy",
+      retryAfter: "10",
     });
     expect(model.daily.size).toBe(0);
+  });
+  it("runs CLOSED → OPEN → HALF_OPEN → CLOSED and reopens on a failed probe", async () => {
+    const { acquire, model } = setup({
+      windowLimit: 100,
+      ipDailyLimit: 100,
+      deviceDailyLimit: 100,
+      globalDailyLimit: 100,
+      circuitBreakerFailureThreshold: 2,
+      circuitBreakerOpenSeconds: 30,
+      circuitBreakerHalfOpenMaxProbes: 1,
+    });
+    expect(
+      await (await acquire("198.18.0.1")).finalize("provider_failure"),
+    ).toBe("none");
+    expect(
+      await (await acquire("198.18.0.2")).finalize("provider_failure"),
+    ).toBe("provider_cb_opened");
+    await expect(acquire("198.18.0.3")).rejects.toMatchObject({
+      code: "provider_temporarily_unavailable",
+      retryAfter: "30",
+    });
+    model.now += 30000;
+    const probe = await acquire("198.18.0.4");
+    expect(probe.circuitState).toBe("half_open");
+    await expect(acquire("198.18.0.5")).rejects.toMatchObject({
+      code: "provider_temporarily_unavailable",
+    });
+    expect(await probe.finalize("success")).toBe("provider_cb_closed");
+    expect((await acquire("198.18.0.6")).circuitState).toBe("closed");
+
+    const reopened = setup({
+      windowLimit: 100,
+      ipDailyLimit: 100,
+      deviceDailyLimit: 100,
+      globalDailyLimit: 100,
+      circuitBreakerFailureThreshold: 1,
+      circuitBreakerOpenSeconds: 30,
+    });
+    await (await reopened.acquire("198.18.1.1")).finalize("neutral_failure");
+    expect(reopened.model.failures).toHaveLength(0);
+    expect(
+      await (await reopened.acquire("198.18.1.2")).finalize("provider_failure"),
+    ).toBe("provider_cb_opened");
+    reopened.model.now += 30000;
+    const failedProbe = await reopened.acquire("198.18.1.3");
+    expect(failedProbe.circuitState).toBe("half_open");
+    expect(await failedProbe.finalize("provider_failure")).toBe(
+      "provider_cb_opened",
+    );
   });
   it.each([
     null,

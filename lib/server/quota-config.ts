@@ -11,11 +11,17 @@ export interface QuotaConfig {
   trustedProxy: "none" | "vercel";
   developmentIp?: string;
   windowLimit: number;
+  deviceDailyLimit: number;
   ipDailyLimit: number;
   globalDailyLimit: number;
   concurrencyLimit: number;
   redisTimeoutMs: number;
   leaseMs: number;
+  circuitBreakerEnabled: boolean;
+  circuitBreakerFailureThreshold: number;
+  circuitBreakerWindowSeconds: number;
+  circuitBreakerOpenSeconds: number;
+  circuitBreakerHalfOpenMaxProbes: number;
   controlKeySuffix: string;
 }
 
@@ -35,12 +41,18 @@ export function getQuotaConfig(
     namespace: "scamshield",
     hmacSecret: "",
     trustedProxy: "none",
-    windowLimit: 3,
-    ipDailyLimit: 10,
-    globalDailyLimit: 200,
-    concurrencyLimit: 3,
+    windowLimit: 5,
+    deviceDailyLimit: 30,
+    ipDailyLimit: 150,
+    globalDailyLimit: 3000,
+    concurrencyLimit: 5,
     redisTimeoutMs: 1000,
     leaseMs: 60000,
+    circuitBreakerEnabled: true,
+    circuitBreakerFailureThreshold: 5,
+    circuitBreakerWindowSeconds: 60,
+    circuitBreakerOpenSeconds: 30,
+    circuitBreakerHalfOpenMaxProbes: 1,
     controlKeySuffix: "analysis-enabled",
   };
   // A safe disabled deployment does not require live service credentials.
@@ -120,13 +132,44 @@ export function getQuotaConfig(
       throw invalid();
     return value;
   };
-  base.windowLimit = integer("QUOTA_WINDOW_LIMIT", 3, 1, 100);
-  base.ipDailyLimit = integer("QUOTA_IP_DAILY_LIMIT", 10, 1, 10000);
-  base.globalDailyLimit = integer("QUOTA_GLOBAL_DAILY_LIMIT", 200, 1, 100000);
-  base.concurrencyLimit = integer("QUOTA_CONCURRENCY_LIMIT", 3, 1, 100);
+  base.windowLimit = integer("QUOTA_WINDOW_LIMIT", 5, 1, 100);
+  base.deviceDailyLimit = integer("QUOTA_DEVICE_DAILY_LIMIT", 30, 1, 10000);
+  base.ipDailyLimit = integer("QUOTA_IP_DAILY_LIMIT", 150, 1, 100000);
+  base.globalDailyLimit = integer("QUOTA_GLOBAL_DAILY_LIMIT", 3000, 1, 1000000);
+  base.concurrencyLimit = integer("QUOTA_CONCURRENCY_LIMIT", 5, 1, 100);
   base.redisTimeoutMs = integer("QUOTA_REDIS_TIMEOUT_MS", 1000, 100, 3000);
   // Existing API maximum is 20 seconds. At least 25 seconds of additional margin.
   base.leaseMs = integer("QUOTA_LEASE_MS", 60000, 45000, 120000);
+  if (
+    env.PROVIDER_CB_ENABLED &&
+    !["true", "false"].includes(env.PROVIDER_CB_ENABLED)
+  )
+    throw invalid();
+  base.circuitBreakerEnabled = env.PROVIDER_CB_ENABLED !== "false";
+  base.circuitBreakerFailureThreshold = integer(
+    "PROVIDER_CB_FAILURE_THRESHOLD",
+    5,
+    1,
+    100,
+  );
+  base.circuitBreakerWindowSeconds = integer(
+    "PROVIDER_CB_WINDOW_SECONDS",
+    60,
+    1,
+    3600,
+  );
+  base.circuitBreakerOpenSeconds = integer(
+    "PROVIDER_CB_OPEN_SECONDS",
+    30,
+    1,
+    3600,
+  );
+  base.circuitBreakerHalfOpenMaxProbes = integer(
+    "PROVIDER_CB_HALF_OPEN_MAX_PROBES",
+    1,
+    1,
+    10,
+  );
   return base;
 }
 

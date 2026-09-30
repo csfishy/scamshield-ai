@@ -13,11 +13,16 @@ const messages: Record<ErrorCode, string> = {
     "目前圖片資訊不足，請提供文字清楚且包含完整上下文的截圖。",
   provider_rate_limit: "AI 供應商目前請求較多，請稍後再試。",
   client_rate_limited: "操作較頻繁，請稍後再試。",
+  device_quota_exceeded: "今日免費分析次數已使用完畢，請明日再試。",
+  ip_safety_limit_exceeded:
+    "目前網路的今日請求量已達安全上限，請於台北時間 00:00 後再試。",
   daily_quota_exceeded:
     "目前網路的今日分析額度已用完，將於台北時間 00:00 重置。同一家庭、公司或公共網路可能共用額度。",
   global_quota_exceeded:
     "今日測試額度已用完，將於台北時間 00:00 重置，請明天再來。",
   analysis_busy: "目前分析人數較多，請稍後再試。",
+  service_busy: "目前分析需求較多，請稍後再試。",
+  provider_temporarily_unavailable: "分析服務暫時無法使用，請稍後再試。",
   analysis_disabled: "分析功能暫時停止，其他功能與意見回饋仍可使用。",
   rate_limit_unavailable: "目前無法確認分析額度，分析暫時停止，請稍後再試。",
   analysis_failed: "目前無法產生有效分析，請換圖或稍後再試。",
@@ -116,7 +121,7 @@ export function errorResponse(
   });
   if (status === 405) headers.set("Allow", "POST");
   const retryAfter = validRetryAfter(error.retryAfter ?? null);
-  if (ERROR_RULES[error.code].statuses[0] === 429 && retryAfter)
+  if ([429, 503].includes(ERROR_RULES[error.code].statuses[0]) && retryAfter)
     headers.set("Retry-After", retryAfter);
   return new Response(
     head

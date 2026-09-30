@@ -187,13 +187,17 @@ export async function verifyNetworkFault(
     assert.equal(proxy.completedAcquisitions, 1);
     const acquisition = proxy.acquisition;
     assert(acquisition);
-    assert.equal(await command(["HGET", acquisition.keys[1], "count"]), "1");
+    assert.equal(await command(["HGET", acquisition.keys[1], "count"]), "0");
     assert.equal(
-      await command(["HGET", acquisition.keys[4], "state"]),
+      await command(["HGET", acquisition.keys[6], "state"]),
       "acquired",
     );
     assert.notEqual(
-      await command(["ZSCORE", acquisition.keys[3], acquisition.args[0]]),
+      await command(["ZSCORE", acquisition.keys[5], acquisition.args[0]]),
+      null,
+    );
+    assert.notEqual(
+      await command(["ZSCORE", acquisition.keys[2], acquisition.args[0]]),
       null,
     );
   } finally {
