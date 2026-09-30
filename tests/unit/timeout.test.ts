@@ -99,11 +99,17 @@ async function controlled(preflightMs = 0, cleanupMs = 0) {
   const entered = deferred<AnalysisContext>();
   const completion = deferred<ProviderResult>();
   const admission = deferred<void>();
-  const release = vi.fn(async () => {
+  const finalize = vi.fn(async () => {
     if (cleanupMs)
       await new Promise<void>((resolve) => setTimeout(resolve, cleanupMs));
+    return "none" as const;
   });
-  const acquire = vi.fn(async () => ({ release }));
+  const release = vi.fn(async () => {});
+  const acquire = vi.fn(async () => ({
+    circuitState: "closed" as const,
+    finalize,
+    release,
+  }));
   const service: QuotaService = {
     preflight: async (_request, _id, signal) => {
       await abortable(admission.promise, signal);
@@ -130,6 +136,7 @@ async function controlled(preflightMs = 0, cleanupMs = 0) {
     completion,
     analyze,
     telemetry,
+    finalize,
     release,
     acquire,
   };
@@ -146,7 +153,9 @@ describe("20s / 25s deadlines with fake time and an offline Provider", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(normal);
     expect(h.analyze).toHaveBeenCalledOnce();
-    expect(h.release).toHaveBeenCalledOnce();
+    expect(h.finalize).toHaveBeenCalledOnce();
+    expect(h.finalize).toHaveBeenCalledWith("success");
+    expect(h.release).not.toHaveBeenCalled();
     expect(h.telemetry).toHaveBeenCalledWith(
       expect.objectContaining({
         durationMs: 20999,
@@ -154,11 +163,12 @@ describe("20s / 25s deadlines with fake time and an offline Provider", () => {
         usageKnown: true,
         inputTokens: 100,
         outputTokens: 20,
-        leaseDisposition: "released",
+        quotaOutcome: "committed",
+        leaseDisposition: "committed",
       }),
     );
   });
-  it("times out at 20s, holds the lease, and ignores late success without retry", async () => {
+  it("times out at 20s, rolls back the lease, and ignores late success without retry", async () => {
     const h = await controlled();
     await vi.advanceTimersByTimeAsync(20000);
     const response = await h.response;
@@ -167,6 +177,8 @@ describe("20s / 25s deadlines with fake time and an offline Provider", () => {
     expect(h.context.signal.aborted).toBe(true);
     expect(h.context.signal.reason).toMatchObject({ kind: "timeout" });
     expect(h.acquire).toHaveBeenCalledOnce();
+    expect(h.finalize).toHaveBeenCalledOnce();
+    expect(h.finalize).toHaveBeenCalledWith("provider_failure");
     expect(h.release).not.toHaveBeenCalled();
     expect(h.telemetry).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -174,8 +186,8 @@ describe("20s / 25s deadlines with fake time and an offline Provider", () => {
         failureKind: "timeout",
         providerEntered: true,
         usageKnown: false,
-        quotaOutcome: "started",
-        leaseDisposition: "held_until_expiry",
+        quotaOutcome: "rolled_back",
+        leaseDisposition: "released",
       }),
     );
     const event = h.telemetry.mock.calls[0][0];
@@ -187,6 +199,7 @@ describe("20s / 25s deadlines with fake time and an offline Provider", () => {
     expect(h.analyze).toHaveBeenCalledOnce();
     expect(h.telemetry).toHaveBeenCalledOnce();
     expect(JSON.stringify(event)).toBe(snapshot);
+    expect(h.finalize).toHaveBeenCalledOnce();
     expect(h.release).not.toHaveBeenCalled();
   });
   it("shortens Provider time after 6s preflight to retain the 2s API margin", async () => {

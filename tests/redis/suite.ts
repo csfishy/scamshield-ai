@@ -192,16 +192,82 @@ export async function runRedisSuite(
   );
 
   await check(
-    "global success reservation race admits only the final slot",
+    "device limit counts committed successes plus concurrent reservations",
     async () => {
+      const quota = service({
+          windowLimit: 100,
+          ipDailyLimit: 100,
+          deviceDailyLimit: 2,
+          globalDailyLimit: 100,
+          concurrencyLimit: 20,
+          circuitBreakerEnabled: false,
+        }),
+        deviceId = "44444444-4444-4444-8444-444444444444";
+      await (
+        await admission(quota, "192.0.2.11", deviceId)
+      ).finalize("success");
+      const attempts = await settleAll(
+        Array.from({ length: 8 }, () =>
+          quota.preflight(
+            request("192.0.2.11", deviceId),
+            randomUUID(),
+            signal,
+          ),
+        ),
+      );
+      const results = await Promise.allSettled(
+        attempts.map((attempt) => attempt.acquire(signal)),
+      );
+      const admitted = results.filter(
+        (
+          result,
+        ): result is PromiseFulfilledResult<
+          Awaited<ReturnType<(typeof attempts)[number]["acquire"]>>
+        > => result.status === "fulfilled",
+      );
+      const rejectedCodes = results
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected",
+        )
+        .map((result) =>
+          typeof result.reason?.code === "string"
+            ? result.reason.code
+            : "unknown",
+        );
+      const diagnostic = JSON.stringify({
+        admitted: admitted.length,
+        rejectedCodes,
+      });
+      if (
+        admitted.length !== 1 ||
+        rejectedCodes.some((code) => code !== "device_quota_exceeded")
+      )
+        console.log(`SAFE_DIAGNOSTIC device-reservation-race ${diagnostic}`);
+      assert.equal(admitted.length, 1, diagnostic);
+      assert(
+        rejectedCodes.every((code) => code === "device_quota_exceeded"),
+        diagnostic,
+      );
+      await admitted[0].value.finalize("neutral_failure");
+    },
+  );
+
+  await check(
+    "global limit counts committed successes plus active reservations",
+    async () => {
+      const globalCounter = `${prefix}:quota:global:day`,
+        globalReservations = `${prefix}:quota:global:reservations`;
+      await command(["DEL", globalCounter, globalReservations]);
       const quota = service({
         windowLimit: 100,
         ipDailyLimit: 100,
         deviceDailyLimit: 100,
-        globalDailyLimit: 1,
+        globalDailyLimit: 3,
         concurrencyLimit: 20,
         circuitBreakerEnabled: false,
       });
+      await (await admission(quota, "198.51.100.200")).finalize("success");
       const attempts = await settleAll(
         Array.from({ length: 12 }, async (_, index) =>
           quota.preflight(
@@ -221,38 +287,60 @@ export async function runRedisSuite(
           Awaited<ReturnType<(typeof attempts)[number]["acquire"]>>
         > => result.status === "fulfilled",
       );
-      assert.equal(admitted.length, 1);
+      const rejectedCodes = results
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected",
+        )
+        .map((result) =>
+          typeof result.reason?.code === "string"
+            ? result.reason.code
+            : "unknown",
+        );
+      const diagnostic = JSON.stringify({
+        admitted: admitted.length,
+        rejectedCodes,
+      });
+      if (
+        admitted.length !== 2 ||
+        rejectedCodes.some((code) => code !== "global_quota_exceeded")
+      )
+        console.log(`SAFE_DIAGNOSTIC global-reservation-race ${diagnostic}`);
+      assert.equal(admitted.length, 2, diagnostic);
       assert(
         results
           .filter((result) => result.status === "rejected")
           .every((result) => result.reason?.code === "global_quota_exceeded"),
+        diagnostic,
       );
-      await admitted[0].value.finalize("success");
+      await settleAll(
+        admitted.map((result) => result.value.finalize("neutral_failure")),
+      );
     },
   );
 
   await check(
-    "five distributed leases allow five, reject six, then recover",
+    "two distributed leases allow two, reject three, then recover",
     async () => {
       const quota = service({
         windowLimit: 100,
         ipDailyLimit: 100,
         deviceDailyLimit: 100,
         globalDailyLimit: 100,
-        concurrencyLimit: 5,
+        concurrencyLimit: 2,
         circuitBreakerEnabled: false,
       });
       const leases = [];
-      for (let i = 0; i < 5; i++)
+      for (let i = 0; i < 2; i++)
         leases.push(await admission(quota, `203.0.113.${i + 1}`));
-      const sixth = await quota.preflight(
-        request("203.0.113.6"),
+      const third = await quota.preflight(
+        request("203.0.113.3"),
         randomUUID(),
         signal,
       );
-      await assert.rejects(sixth.acquire(signal), { code: "service_busy" });
+      await assert.rejects(third.acquire(signal), { code: "service_busy" });
       await leases[0].finalize("neutral_failure");
-      await (await admission(quota, "203.0.113.7")).finalize("neutral_failure");
+      await (await admission(quota, "203.0.113.4")).finalize("neutral_failure");
       for (const lease of leases.slice(1))
         await lease.finalize("neutral_failure");
     },
@@ -261,6 +349,11 @@ export async function runRedisSuite(
   await check(
     "expired crash leases and reservations are reclaimed",
     async () => {
+      await command([
+        "DEL",
+        `${prefix}:quota:global:day`,
+        `${prefix}:quota:global:reservations`,
+      ]);
       let captured: { keys: string[]; token: string } | undefined;
       const capture: RedisExecutor = async (script, keys, args) => {
         const value = await execute(script, keys, args);
@@ -396,6 +489,95 @@ export async function runRedisSuite(
       await assert.rejects(blocked.acquire(signal), {
         code: "provider_temporarily_unavailable",
       });
+    },
+  );
+
+  await check(
+    "expired HALF_OPEN probe is reclaimed with single-probe enforcement",
+    async () => {
+      const cbState = `${prefix}:provider:cb:state`,
+        cbFailures = `${prefix}:provider:cb:failures`,
+        cbProbes = `${prefix}:provider:cb:half-open-probes`;
+      await command([
+        "DEL",
+        cbState,
+        cbFailures,
+        cbProbes,
+        `${prefix}:provider:concurrency`,
+        `${prefix}:quota:global:day`,
+        `${prefix}:quota:global:reservations`,
+      ]);
+      const acquisitions: { keys: string[]; token: string }[] = [];
+      const capture: RedisExecutor = async (script, keys, args) => {
+        const value = await execute(script, keys, args);
+        if (script === ACQUIRE_SCRIPT)
+          acquisitions.push({ keys, token: args[0] });
+        return value;
+      };
+      const quota = createQuotaService(
+        {
+          ...config,
+          windowLimit: 100,
+          ipDailyLimit: 100,
+          deviceDailyLimit: 100,
+          globalDailyLimit: 100,
+          concurrencyLimit: 10,
+          circuitBreakerFailureThreshold: 1,
+          circuitBreakerOpenSeconds: 30,
+          circuitBreakerHalfOpenMaxProbes: 1,
+        },
+        { execute: capture },
+      );
+      assert.equal(
+        await (
+          await admission(quota, "198.18.2.1")
+        ).finalize("provider_failure"),
+        "provider_cb_opened",
+      );
+      await mutate(
+        "HSET",
+        cbState,
+        "state",
+        "OPEN",
+        "opened_at",
+        String((await nowMs()) - 31000),
+      );
+      const staleProbe = await admission(quota, "198.18.2.2");
+      assert.equal(staleProbe.circuitState, "half_open");
+      const stale = acquisitions.at(-1);
+      assert(stale);
+      const expired = String((await nowMs()) - 1);
+      for (const index of [2, 4, 5, 9])
+        await mutate("ZADD", stale.keys[index], expired, stale.token);
+      const attempts = await settleAll(
+        ["198.18.2.3", "198.18.2.4"].map((ip) =>
+          quota.preflight(request(ip), randomUUID(), signal),
+        ),
+      );
+      const results = await Promise.allSettled(
+        attempts.map((attempt) => attempt.acquire(signal)),
+      );
+      const admitted = results.filter(
+        (
+          result,
+        ): result is PromiseFulfilledResult<
+          Awaited<ReturnType<(typeof attempts)[number]["acquire"]>>
+        > => result.status === "fulfilled",
+      );
+      assert.equal(admitted.length, 1);
+      assert(
+        results
+          .filter((result) => result.status === "rejected")
+          .every(
+            (result) =>
+              result.reason?.code === "provider_temporarily_unavailable",
+          ),
+      );
+      assert.equal(admitted[0].value.circuitState, "half_open");
+      assert.equal(
+        await admitted[0].value.finalize("success"),
+        "provider_cb_closed",
+      );
     },
   );
 

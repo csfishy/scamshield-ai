@@ -144,6 +144,9 @@ export async function verifyNetworkFault(
       redisUrl: proxy.url,
       redisToken: proxy.token,
       redisTimeoutMs: 3000,
+      // This check isolates response-loss behavior from circuit state left by
+      // the preceding transition checks in the same test namespace.
+      circuitBreakerEnabled: false,
     });
     const handlerConfig: ServerConfig = {
       mode: "remote",
