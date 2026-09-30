@@ -2349,16 +2349,16 @@ h1 {
     padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
   .homepage-analysis-main .intro {
-    padding: 18px 2px 20px;
+    padding: 24px 2px;
   }
   .homepage-analysis-main .eyebrow {
-    margin-bottom: 8px;
-  }
-  .homepage-analysis-main h1 {
     margin-bottom: 10px;
   }
+  .homepage-analysis-main h1 {
+    margin-bottom: 14px;
+  }
   .homepage-analysis-main .hero-title-secondary {
-    margin-top: 7px;
+    margin-top: 9px;
   }
   .homepage-analysis-main .intro-copy {
     line-height: 1.52;

@@ -474,7 +474,7 @@ export function AnalysisWorkspace({
               >
                 {isHomepage && (
                   <span className="hero-title-primary" aria-hidden="true">
-                    停一下，再確認
+                    多一分確認，少一分風險
                   </span>
                 )}
                 <span
