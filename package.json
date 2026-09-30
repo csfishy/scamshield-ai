@@ -16,6 +16,7 @@
     "test:redis": "node --conditions=react-server --import tsx tests/redis/run.ts",
     "test:redis:rest": "node --conditions=react-server --import tsx tests/redis/run-rest.ts",
     "test:e2e": "node scripts/test-e2e.mjs",
+    "capture:visual": "node scripts/capture-visual-acceptance.mjs",
     "eval:ai": "node --conditions=react-server --import tsx scripts/evaluate.ts",
     "verify:bundle": "node scripts/check-bundle.mjs",
     "eval:prepare": "node --import tsx scripts/prepare-evaluation.ts",
