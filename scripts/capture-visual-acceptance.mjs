@@ -84,16 +84,19 @@ async function measureAboveFold(width, height, engine = "chromium") {
       page.locator(".upload-panel").boundingBox(),
       page.locator(".result-panel").boundingBox(),
     ]);
+  const heroBottom = (heroBox?.y ?? 0) + (heroBox?.height ?? 0);
+  const uploadTop = uploadBox?.y ?? 0;
+  const uploadBottom = uploadTop + (uploadBox?.height ?? 0);
   aboveFold.push({
     engine,
     viewport: `${width}x${height}`,
-    heroBottom: Math.round((heroBox?.y ?? 0) + (heroBox?.height ?? 0)),
+    heroBottom: Math.round(heroBottom),
+    uploadTop: Math.round(uploadTop),
+    gap: Math.round(uploadTop - heroBottom),
     selectBottom: Math.round((selectBox?.y ?? 0) + (selectBox?.height ?? 0)),
     analyzeBottom: Math.round((analyzeBox?.y ?? 0) + (analyzeBox?.height ?? 0)),
-    uploadCardBottom: Math.round(
-      (uploadBox?.y ?? 0) + (uploadBox?.height ?? 0),
-    ),
-    resultCardTop: Math.round(resultBox?.y ?? 0),
+    uploadBottom: Math.round(uploadBottom),
+    resultTop: Math.round(resultBox?.y ?? 0),
     viewportHeight: height,
     scrollY: await page.evaluate(() => window.scrollY),
     noHorizontalOverflow: await page.evaluate(
@@ -134,6 +137,7 @@ try {
   ]) {
     await measureAboveFold(width, height);
   }
+  await measureAboveFold(390, 932, "chromium-standalone-like");
   await measureFeedback(390, 844);
   await measureFeedback(393, 852);
   await measureFeedback(1440, 900);
@@ -144,6 +148,7 @@ try {
   await capture("mobile-selected-390x844.png", 390, 844, "selected");
   await capture("mobile-idle-393x852.png", 393, 852);
   await capture("mobile-idle-430x932.png", 430, 932);
+  await capture("mobile-pwa-like-390x932.png", 390, 932);
   await capture("mobile-result-393x852.png", 393, 852, "result");
 
   const standaloneContext = await browser.newContext({
@@ -197,6 +202,7 @@ try {
   ]) {
     await measureAboveFold(width, height, "webkit");
   }
+  await measureAboveFold(390, 932, "webkit-standalone-like");
   await measureFeedback(390, 844, "webkit");
   await measureFeedback(393, 852, "webkit");
   await capture("mobile-webkit-idle-390x844.png", 390, 844);

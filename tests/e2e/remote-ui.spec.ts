@@ -43,6 +43,7 @@ for (const [width, height] of [
   [390, 844],
   [393, 852],
   [430, 932],
+  [390, 932],
 ] as const) {
   test(`homepage keeps both primary actions above the fold at ${width}x${height}`, async ({
     page,
@@ -70,12 +71,21 @@ for (const [width, height] of [
     await expect(analyzeCta).toBeVisible();
     await expect(analyzeCta).toBeDisabled();
 
-    const [screenshotBox, analyzeBox] = await Promise.all([
+    const [heroBox, uploadBox, screenshotBox, analyzeBox] = await Promise.all([
+      page.locator(".intro").boundingBox(),
+      page.locator(".upload-panel").boundingBox(),
       screenshotCta.boundingBox(),
       analyzeCta.boundingBox(),
     ]);
+    expect(heroBox).not.toBeNull();
+    expect(uploadBox).not.toBeNull();
     expect(screenshotBox).not.toBeNull();
     expect(analyzeBox).not.toBeNull();
+
+    const heroToUploadGap = uploadBox!.y - (heroBox!.y + heroBox!.height);
+    expect(heroToUploadGap).toBeGreaterThanOrEqual(23);
+    expect(heroToUploadGap).toBeLessThanOrEqual(48);
+
     expect(screenshotBox!.y).toBeGreaterThanOrEqual(0);
     expect(screenshotBox!.y + screenshotBox!.height).toBeLessThanOrEqual(
       height,

@@ -2410,7 +2410,7 @@ h1 {
   }
   .homepage-analysis-main .workspace-grid {
     display: block;
-    margin-top: auto;
+    margin-top: clamp(24px, 7vw, 32px);
   }
   .homepage-analysis-main .upload-panel {
     padding: 14px;
