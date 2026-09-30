@@ -457,353 +457,362 @@ export function AnalysisWorkspace({
         </nav>
       )}
 
-      <main>
-        <section className="intro" aria-labelledby="page-title">
-          {isHomepage && <div className="hero-scene" aria-hidden="true" />}
-          <div className="intro-content">
-            <p className="eyebrow">
-              {isHomepage ? "A SAFER DIGITAL DAY" : "停一下，再確認"}
-            </p>
-            <h1
-              id="page-title"
-              aria-label={isHomepage ? "可疑截圖，先交給 AI 看看" : undefined}
-            >
-              {isHomepage && (
-                <span className="hero-title-primary" aria-hidden="true">
-                  停一下，再確認
-                </span>
-              )}
-              <span className={isHomepage ? "hero-title-secondary" : undefined}>
-                可疑截圖，先交給 AI 看看
-              </span>
-            </h1>
-            <p className="intro-copy">
-              在點擊連結、付款或提供驗證碼前，先整理圖片中的風險訊號與下一步行動。
-            </p>
-            {showModeNotice && (
-              <div
-                className={`mode-notice mode-notice-${initialMode}`}
-                role="note"
+      <main
+        className={`analysis-main ${isHomepage ? "homepage-analysis-main" : ""}`}
+        aria-label="ScamShield 分析工作區"
+      >
+        <div className="mobile-primary-stage">
+          <section className="intro" aria-labelledby="page-title">
+            {isHomepage && <div className="hero-scene" aria-hidden="true" />}
+            <div className="intro-content">
+              <p className="eyebrow">
+                {isHomepage ? "A SAFER DIGITAL DAY" : "停一下，再確認"}
+              </p>
+              <h1
+                id="page-title"
+                aria-label={isHomepage ? "可疑截圖，先交給 AI 看看" : undefined}
               >
-                <span aria-hidden="true">i</span>
-                <p>
-                  {initialMode === "mock" ? (
-                    <>
-                      <strong>本機 Demo：</strong> {DEMO_NOTICE}，不會呼叫{" "}
-                      <code>/analyze</code>。
-                    </>
-                  ) : (
-                    <>
-                      <strong>即時模式：</strong>
-                      按下「開始 AI 分析」後，圖片才會傳送至本服務的 Vercel
-                      部署與 OpenAI；選圖預覽留在本機。
-                    </>
-                  )}
-                </p>
-              </div>
-            )}
-            {isHomepage && (
-              <ul className="value-props" aria-label="服務特色">
-                <li>
-                  <span className="value-icon">
-                    <IconValue kind="shield" />
+                {isHomepage && (
+                  <span className="hero-title-primary" aria-hidden="true">
+                    停一下，再確認
                   </span>
-                  <span>
-                    <strong>快速辨識風險</strong>
-                    <small>AI 即時分析</small>
-                  </span>
-                </li>
-                <li>
-                  <span className="value-icon">
-                    <IconValue kind="people" />
-                  </span>
-                  <span>
-                    <strong>保護你我家人</strong>
-                    <small>少一個受害者</small>
-                  </span>
-                </li>
-                <li>
-                  <span className="value-icon">
-                    <IconValue kind="leaf" />
-                  </span>
-                  <span>
-                    <strong>更安心的數位生活</strong>
-                    <small>從多一次確認開始</small>
-                  </span>
-                </li>
-              </ul>
-            )}
-          </div>
-        </section>
-
-        <div className="workspace-grid" aria-label="ScamShield 分析工作區">
-          <section
-            className="panel upload-panel"
-            aria-labelledby="upload-title"
-          >
-            <div className="section-heading">
-              <span className="step-number" aria-hidden="true">
-                1
-              </span>
-              <div>
-                <h2 id="upload-title">選擇可疑截圖</h2>
-                <p>
-                  {isHomepage
-                    ? "上傳你覺得可疑的對話、簡訊、社群貼文或網頁截圖"
-                    : "單張 JPEG 或 PNG，最大 4 MiB"}
-                </p>
-              </div>
-            </div>
-
-            <div
-              className={`upload-control ${previewUrl ? "has-preview" : "is-empty"}`}
-            >
-              <input
-                ref={fileInputRef}
-                className="file-input"
-                type="file"
-                accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                aria-label={previewUrl ? "重新選擇可疑截圖" : "選擇可疑截圖"}
-                onChange={handleFileSelected}
-              />
-              {previewUrl ? (
-                <>
-                  {/* Blob URLs remain local to this page and are revoked on replace/reset. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    className="image-preview"
-                    src={previewUrl}
-                    alt="所選可疑截圖的預覽"
-                  />
-                  <span className="replace-hint" aria-hidden="true">
-                    點選或按 Enter 重新選圖
-                  </span>
-                </>
-              ) : (
-                <div className="upload-prompt" aria-hidden="true">
-                  <span className="upload-icon">
-                    <IconImage />
-                  </span>
-                  <strong>選擇一張可疑截圖</strong>
-                  <span>支援 JPEG、PNG，最大 4 MiB</span>
-                  <span className="button button-secondary">選擇截圖</span>
+                )}
+                <span
+                  className={isHomepage ? "hero-title-secondary" : undefined}
+                >
+                  可疑截圖，先交給 AI 看看
+                </span>
+              </h1>
+              <p className="intro-copy">
+                在點擊連結、付款或提供驗證碼前，先整理圖片中的風險訊號與下一步行動。
+              </p>
+              {showModeNotice && (
+                <div
+                  className={`mode-notice mode-notice-${initialMode}`}
+                  role="note"
+                >
+                  <span aria-hidden="true">i</span>
+                  <p>
+                    {initialMode === "mock" ? (
+                      <>
+                        <strong>本機 Demo：</strong> {DEMO_NOTICE}，不會呼叫{" "}
+                        <code>/analyze</code>。
+                      </>
+                    ) : (
+                      <>
+                        <strong>即時模式：</strong>
+                        按下「開始 AI 分析」後，圖片才會傳送至本服務的 Vercel
+                        部署與 OpenAI；選圖預覽留在本機。
+                      </>
+                    )}
+                  </p>
                 </div>
               )}
+              {isHomepage && (
+                <ul className="value-props" aria-label="服務特色">
+                  <li>
+                    <span className="value-icon">
+                      <IconValue kind="shield" />
+                    </span>
+                    <span>
+                      <strong>快速辨識風險</strong>
+                      <small>AI 即時分析</small>
+                    </span>
+                  </li>
+                  <li>
+                    <span className="value-icon">
+                      <IconValue kind="people" />
+                    </span>
+                    <span>
+                      <strong>保護你我家人</strong>
+                      <small>少一個受害者</small>
+                    </span>
+                  </li>
+                  <li>
+                    <span className="value-icon">
+                      <IconValue kind="leaf" />
+                    </span>
+                    <span>
+                      <strong>更安心的數位生活</strong>
+                      <small>從多一次確認開始</small>
+                    </span>
+                  </li>
+                </ul>
+              )}
             </div>
+          </section>
 
-            {selectedFile && imageInfo && (
-              <div className="file-summary">
-                <span className="file-check" aria-hidden="true">
-                  ✓
-                </span>
-                <span className="file-meta">
-                  <strong title={selectedFile.name}>{selectedFile.name}</strong>
-                  <small>
-                    {formatFileSize(selectedFile.size)} ·{" "}
-                    {imageInfo.mimeType === "image/png" ? "PNG" : "JPEG"} ·{" "}
-                    {imageInfo.width}×{imageInfo.height}
-                  </small>
-                </span>
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={reset}
-                  disabled={isAnalyzing}
-                >
-                  移除
-                </button>
-              </div>
-            )}
-
-            {selectionError && (
-              <div
-                ref={selectionErrorRef}
-                className="status-card error-card"
-                role="alert"
-                tabIndex={-1}
-              >
-                <span className="status-icon" aria-hidden="true">
-                  !
+          <div className="workspace-grid">
+            <section
+              className="panel upload-panel"
+              aria-labelledby="upload-title"
+            >
+              <div className="section-heading">
+                <span className="step-number" aria-hidden="true">
+                  1
                 </span>
                 <div>
-                  <strong>{selectionError.title}</strong>
-                  <span>{selectionError.message}</span>
-                </div>
-              </div>
-            )}
-
-            {isHomepage && actionControls}
-
-            <p className="privacy-hint">
-              <span aria-hidden="true">!</span>
-              上傳前請先遮住不必要的姓名、電話、帳號、信用卡、OTP
-              驗證碼與其他敏感資訊。
-            </p>
-            <div className="data-notice" role="note">
-              <p>本工具為 Beta，可能誤判；低風險不代表安全。</p>
-              <p>
-                服務記錄必要技術資料（問題編號、狀態、耗時及取得時的使用量）；IP
-                會轉換為代碼，供 Upstash Redis
-                進行短期防濫用與額度控制。外部回饋使用 Google 表單。
-                <Link href="/privacy">閱讀資料處理與隱私說明</Link>。
-              </p>
-              <p>
-                每個匿名裝置每日可完成 30
-                次分析；只計成功結果。另設共用網路與全站安全上限， 於台北時間
-                00:00 重置。
-              </p>
-            </div>
-
-            {initialMode === "mock" && (
-              <fieldset className="demo-picker">
-                <legend>選擇本機示範情境</legend>
-                <div className="demo-options">
-                  {demoOptions.map((option) => (
-                    <label
-                      key={option.key}
-                      className={demoKey === option.key ? "is-selected" : ""}
-                    >
-                      <input
-                        type="radio"
-                        name="demo-scenario"
-                        value={option.key}
-                        checked={demoKey === option.key}
-                        onChange={() => changeDemo(option.key)}
-                        disabled={isAnalyzing}
-                      />
-                      <span>
-                        <strong>{option.label}</strong>
-                        <small>{option.detail}</small>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            )}
-
-            {!isHomepage && actionControls}
-
-            <p
-              className="sr-status"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {liveMessage}
-            </p>
-          </section>
-
-          <section
-            className="panel result-panel"
-            aria-labelledby="result-title"
-            aria-busy={isAnalyzing}
-          >
-            <div className="section-heading">
-              <span className="step-number" aria-hidden="true">
-                2
-              </span>
-              <div>
-                <h2 id="result-title" ref={resultHeadingRef} tabIndex={-1}>
-                  分析結果
-                </h2>
-                <p>風險、可疑原因與建議行動一次看懂</p>
-              </div>
-            </div>
-
-            {isAnalyzing ? (
-              <div className="result-loading" role="status" aria-live="polite">
-                <span className="scan-animation" aria-hidden="true">
-                  <IconScan />
-                </span>
-                <strong>
-                  {initialMode === "mock"
-                    ? "正在載入示範資料…"
-                    : "正在分析可疑訊號…"}
-                </strong>
-                <span>請保留此頁面開啟；你仍可取消或直接換圖。</span>
-              </div>
-            ) : result ? (
-              <>
-                <AnalysisResultView
-                  result={result}
-                  isDemo={initialMode === "mock"}
-                />
-                {initialMode === "remote" && (
-                  <>
-                    <RequestReference requestId={requestId} />
-                    <FeedbackLinks
-                      config={feedbackConfig}
-                      requestId={requestId}
-                      label="回報判斷問題"
-                      type="判斷可能有誤"
-                      variant="result"
-                    />
-                  </>
-                )}
-                <button
-                  className="button button-secondary full-width"
-                  type="button"
-                  onClick={reset}
-                >
-                  分析另一張圖片
-                </button>
-              </>
-            ) : analysisError ? (
-              <div className="analysis-error" role="alert">
-                <span className="error-symbol" aria-hidden="true">
-                  !
-                </span>
-                <strong>{analysisError.title}</strong>
-                <p>{analysisError.message}</p>
-                {analysisError.code === "insufficient_evidence" && (
-                  <p className="error-guidance">
-                    請改選文字清楚、範圍完整且包含前後文的截圖。
+                  <h2 id="upload-title">選擇可疑截圖</h2>
+                  <p>
+                    {isHomepage
+                      ? "上傳你覺得可疑的對話、簡訊、社群貼文或網頁截圖"
+                      : "單張 JPEG 或 PNG，最大 4 MiB"}
                   </p>
-                )}
-                {analysisError.retryAfter && (
-                  <p className="error-guidance">{analysisError.retryAfter}</p>
-                )}
-                {initialMode === "remote" && (
-                  <RequestReference
-                    requestId={analysisError.requestId ?? requestId}
-                  />
-                )}
-                <FeedbackLinks
-                  config={feedbackConfig}
-                  requestId={analysisError.requestId ?? requestId}
-                  label="回報問題"
-                  type="操作問題"
+                </div>
+              </div>
+
+              <div
+                className={`upload-control ${previewUrl ? "has-preview" : "is-empty"}`}
+              >
+                <input
+                  ref={fileInputRef}
+                  className="file-input"
+                  type="file"
+                  accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                  aria-label={previewUrl ? "重新選擇可疑截圖" : "選擇可疑截圖"}
+                  onChange={handleFileSelected}
                 />
-                <div className="error-actions">
-                  {analysisError.retryable && (
-                    <button
-                      className="button button-primary"
-                      type="button"
-                      onClick={analyze}
-                    >
-                      手動重試
-                    </button>
-                  )}
+                {previewUrl ? (
+                  <>
+                    {/* Blob URLs remain local to this page and are revoked on replace/reset. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      className="image-preview"
+                      src={previewUrl}
+                      alt="所選可疑截圖的預覽"
+                    />
+                    <span className="replace-hint" aria-hidden="true">
+                      點選或按 Enter 重新選圖
+                    </span>
+                  </>
+                ) : (
+                  <div className="upload-prompt" aria-hidden="true">
+                    <span className="upload-icon">
+                      <IconImage />
+                    </span>
+                    <strong>選擇一張可疑截圖</strong>
+                    <span>支援 JPEG、PNG，最大 4 MiB</span>
+                    <span className="button button-secondary">選擇截圖</span>
+                  </div>
+                )}
+              </div>
+
+              {selectedFile && imageInfo && (
+                <div className="file-summary">
+                  <span className="file-check" aria-hidden="true">
+                    ✓
+                  </span>
+                  <span className="file-meta">
+                    <strong title={selectedFile.name}>
+                      {selectedFile.name}
+                    </strong>
+                    <small>
+                      {formatFileSize(selectedFile.size)} ·{" "}
+                      {imageInfo.mimeType === "image/png" ? "PNG" : "JPEG"} ·{" "}
+                      {imageInfo.width}×{imageInfo.height}
+                    </small>
+                  </span>
                   <button
-                    className="button button-secondary"
+                    className="text-button"
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={reset}
+                    disabled={isAnalyzing}
                   >
-                    選擇其他圖片
+                    移除
                   </button>
                 </div>
+              )}
+
+              {selectionError && (
+                <div
+                  ref={selectionErrorRef}
+                  className="status-card error-card"
+                  role="alert"
+                  tabIndex={-1}
+                >
+                  <span className="status-icon" aria-hidden="true">
+                    !
+                  </span>
+                  <div>
+                    <strong>{selectionError.title}</strong>
+                    <span>{selectionError.message}</span>
+                  </div>
+                </div>
+              )}
+
+              {isHomepage && actionControls}
+
+              <p className="privacy-hint">
+                <span aria-hidden="true">!</span>
+                上傳前請先遮住不必要的姓名、電話、帳號、信用卡、OTP
+                驗證碼與其他敏感資訊。
+              </p>
+              <div className="data-notice" role="note">
+                <p>本工具為 Beta，可能誤判；低風險不代表安全。</p>
+                <p>
+                  服務記錄必要技術資料（問題編號、狀態、耗時及取得時的使用量）；IP
+                  會轉換為代碼，供 Upstash Redis
+                  進行短期防濫用與額度控制。外部回饋使用 Google 表單。
+                  <Link href="/privacy">閱讀資料處理與隱私說明</Link>。
+                </p>
+                <p>
+                  每個匿名裝置每日可完成 30
+                  次分析；只計成功結果。另設共用網路與全站安全上限， 於台北時間
+                  00:00 重置。
+                </p>
               </div>
-            ) : (
-              <div className="empty-result">
-                <span className="scan-icon" aria-hidden="true">
-                  <IconScan />
-                </span>
-                <strong>分析結果將顯示在這裡</strong>
-                <span>選擇截圖後，我們會整理風險、可疑原因與建議行動。</span>
-              </div>
-            )}
-          </section>
+
+              {initialMode === "mock" && (
+                <fieldset className="demo-picker">
+                  <legend>選擇本機示範情境</legend>
+                  <div className="demo-options">
+                    {demoOptions.map((option) => (
+                      <label
+                        key={option.key}
+                        className={demoKey === option.key ? "is-selected" : ""}
+                      >
+                        <input
+                          type="radio"
+                          name="demo-scenario"
+                          value={option.key}
+                          checked={demoKey === option.key}
+                          onChange={() => changeDemo(option.key)}
+                          disabled={isAnalyzing}
+                        />
+                        <span>
+                          <strong>{option.label}</strong>
+                          <small>{option.detail}</small>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+
+              {!isHomepage && actionControls}
+
+              <p
+                className="sr-status"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {liveMessage}
+              </p>
+            </section>
+          </div>
         </div>
+
+        <section
+          className="panel result-panel"
+          aria-labelledby="result-title"
+          aria-busy={isAnalyzing}
+        >
+          <div className="section-heading">
+            <span className="step-number" aria-hidden="true">
+              2
+            </span>
+            <div>
+              <h2 id="result-title" ref={resultHeadingRef} tabIndex={-1}>
+                分析結果
+              </h2>
+              <p>風險、可疑原因與建議行動一次看懂</p>
+            </div>
+          </div>
+
+          {isAnalyzing ? (
+            <div className="result-loading" role="status" aria-live="polite">
+              <span className="scan-animation" aria-hidden="true">
+                <IconScan />
+              </span>
+              <strong>
+                {initialMode === "mock"
+                  ? "正在載入示範資料…"
+                  : "正在分析可疑訊號…"}
+              </strong>
+              <span>請保留此頁面開啟；你仍可取消或直接換圖。</span>
+            </div>
+          ) : result ? (
+            <>
+              <AnalysisResultView
+                result={result}
+                isDemo={initialMode === "mock"}
+              />
+              {initialMode === "remote" && (
+                <>
+                  <RequestReference requestId={requestId} />
+                  <FeedbackLinks
+                    config={feedbackConfig}
+                    requestId={requestId}
+                    label="回報判斷問題"
+                    type="判斷可能有誤"
+                    variant="result"
+                  />
+                </>
+              )}
+              <button
+                className="button button-secondary full-width"
+                type="button"
+                onClick={reset}
+              >
+                分析另一張圖片
+              </button>
+            </>
+          ) : analysisError ? (
+            <div className="analysis-error" role="alert">
+              <span className="error-symbol" aria-hidden="true">
+                !
+              </span>
+              <strong>{analysisError.title}</strong>
+              <p>{analysisError.message}</p>
+              {analysisError.code === "insufficient_evidence" && (
+                <p className="error-guidance">
+                  請改選文字清楚、範圍完整且包含前後文的截圖。
+                </p>
+              )}
+              {analysisError.retryAfter && (
+                <p className="error-guidance">{analysisError.retryAfter}</p>
+              )}
+              {initialMode === "remote" && (
+                <RequestReference
+                  requestId={analysisError.requestId ?? requestId}
+                />
+              )}
+              <FeedbackLinks
+                config={feedbackConfig}
+                requestId={analysisError.requestId ?? requestId}
+                label="回報問題"
+                type="操作問題"
+              />
+              <div className="error-actions">
+                {analysisError.retryable && (
+                  <button
+                    className="button button-primary"
+                    type="button"
+                    onClick={analyze}
+                  >
+                    手動重試
+                  </button>
+                )}
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  選擇其他圖片
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="empty-result">
+              <span className="scan-icon" aria-hidden="true">
+                <IconScan />
+              </span>
+              <strong>分析結果將顯示在這裡</strong>
+              <span>選擇截圖後，我們會整理風險、可疑原因與建議行動。</span>
+            </div>
+          )}
+        </section>
       </main>
 
       <footer className="site-footer">

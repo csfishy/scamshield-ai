@@ -34,6 +34,7 @@ await mkdir(output, { recursive: true });
 let browser = await chromium.launch();
 const aboveFold = [];
 const platformChecks = [];
+const feedbackChecks = [];
 
 async function newPage(width, height) {
   const page = await browser.newPage({
@@ -75,17 +76,24 @@ async function capture(name, width, height, state = "idle") {
 
 async function measureAboveFold(width, height, engine = "chromium") {
   const page = await newPage(width, height);
-  const selectBox = await page
-    .getByText("選擇截圖", { exact: true })
-    .boundingBox();
-  const analyzeBox = await page
-    .getByRole("button", { name: "開始 AI 分析" })
-    .boundingBox();
+  const [heroBox, selectBox, analyzeBox, uploadBox, resultBox] =
+    await Promise.all([
+      page.locator(".intro").boundingBox(),
+      page.getByText("選擇截圖", { exact: true }).boundingBox(),
+      page.getByRole("button", { name: "開始 AI 分析" }).boundingBox(),
+      page.locator(".upload-panel").boundingBox(),
+      page.locator(".result-panel").boundingBox(),
+    ]);
   aboveFold.push({
     engine,
     viewport: `${width}x${height}`,
+    heroBottom: Math.round((heroBox?.y ?? 0) + (heroBox?.height ?? 0)),
     selectBottom: Math.round((selectBox?.y ?? 0) + (selectBox?.height ?? 0)),
     analyzeBottom: Math.round((analyzeBox?.y ?? 0) + (analyzeBox?.height ?? 0)),
+    uploadCardBottom: Math.round(
+      (uploadBox?.y ?? 0) + (uploadBox?.height ?? 0),
+    ),
+    resultCardTop: Math.round(resultBox?.y ?? 0),
     viewportHeight: height,
     scrollY: await page.evaluate(() => window.scrollY),
     noHorizontalOverflow: await page.evaluate(
@@ -93,6 +101,25 @@ async function measureAboveFold(width, height, engine = "chromium") {
         document.documentElement.scrollWidth <=
         document.documentElement.clientWidth,
     ),
+  });
+  await page.close();
+}
+
+async function measureFeedback(width, height, engine = "chromium") {
+  const page = await newPage(width, height);
+  await page.locator('input[type="file"]').setInputFiles(inputImage);
+  await page.getByRole("button", { name: "開始 AI 分析" }).click();
+  await page.locator(".risk-card").waitFor();
+  await page.waitForTimeout(700);
+  feedbackChecks.push({
+    engine,
+    viewport: `${width}x${height}`,
+    inlineFeedbackVisible: await page.locator(".result-feedback").isVisible(),
+    analyzeAnotherVisible: await page
+      .getByRole("button", { name: "分析另一張圖片" })
+      .isVisible(),
+    homepageFeedbackPresent:
+      (await page.locator("#site-feedback").count()) === 1,
   });
   await page.close();
 }
@@ -107,6 +134,9 @@ try {
   ]) {
     await measureAboveFold(width, height);
   }
+  await measureFeedback(390, 844);
+  await measureFeedback(393, 852);
+  await measureFeedback(1440, 900);
   await capture("desktop-idle-1440x900.png", 1440, 900);
   await capture("desktop-result-1440x900.png", 1440, 900, "result");
   await capture("mobile-idle-390x844.png", 390, 844);
@@ -157,8 +187,16 @@ try {
 
 browser = await webkit.launch();
 try {
-  await measureAboveFold(390, 844, "webkit");
-  await measureAboveFold(393, 852, "webkit");
+  for (const [width, height] of [
+    [375, 667],
+    [390, 844],
+    [393, 852],
+    [430, 932],
+  ]) {
+    await measureAboveFold(width, height, "webkit");
+  }
+  await measureFeedback(390, 844, "webkit");
+  await measureFeedback(393, 852, "webkit");
   await capture("mobile-webkit-idle-390x844.png", 390, 844);
   await capture("mobile-webkit-result-393x852.png", 393, 852, "result");
   platformChecks.push({ mode: "webkit", loaded: true });
@@ -167,5 +205,6 @@ try {
 }
 
 console.log(JSON.stringify(aboveFold, null, 2));
+console.log(JSON.stringify(feedbackChecks, null, 2));
 console.log(JSON.stringify(platformChecks, null, 2));
 console.log(output);
