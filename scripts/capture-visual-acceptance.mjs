@@ -76,8 +76,9 @@ async function capture(name, width, height, state = "idle") {
 
 async function measureAboveFold(width, height, engine = "chromium") {
   const page = await newPage(width, height);
-  const [heroBox, selectBox, analyzeBox, uploadBox, resultBox] =
+  const [stageBox, heroBox, selectBox, analyzeBox, uploadBox, resultBox] =
     await Promise.all([
+      page.locator(".mobile-primary-stage").boundingBox(),
       page.locator(".intro").boundingBox(),
       page.getByText("選擇截圖", { exact: true }).boundingBox(),
       page.getByRole("button", { name: "開始 AI 分析" }).boundingBox(),
@@ -87,6 +88,7 @@ async function measureAboveFold(width, height, engine = "chromium") {
   const heroBottom = (heroBox?.y ?? 0) + (heroBox?.height ?? 0);
   const uploadTop = uploadBox?.y ?? 0;
   const uploadBottom = uploadTop + (uploadBox?.height ?? 0);
+  const stageBottom = (stageBox?.y ?? 0) + (stageBox?.height ?? 0);
   aboveFold.push({
     engine,
     viewport: `${width}x${height}`,
@@ -96,6 +98,8 @@ async function measureAboveFold(width, height, engine = "chromium") {
     selectBottom: Math.round((selectBox?.y ?? 0) + (selectBox?.height ?? 0)),
     analyzeBottom: Math.round((analyzeBox?.y ?? 0) + (analyzeBox?.height ?? 0)),
     uploadBottom: Math.round(uploadBottom),
+    stageBottom: Math.round(stageBottom),
+    uploadToStageBottom: Math.round(stageBottom - uploadBottom),
     resultTop: Math.round(resultBox?.y ?? 0),
     viewportHeight: height,
     scrollY: await page.evaluate(() => window.scrollY),
@@ -149,6 +153,7 @@ try {
   await capture("mobile-idle-393x852.png", 393, 852);
   await capture("mobile-idle-430x932.png", 430, 932);
   await capture("mobile-pwa-like-390x932.png", 390, 932);
+  await capture("landscape-idle-932x430.png", 932, 430);
   await capture("mobile-result-393x852.png", 393, 852, "result");
 
   const standaloneContext = await browser.newContext({
