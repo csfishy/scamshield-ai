@@ -2260,3 +2260,24 @@ h1 {
     min-height: 44px;
   }
 }
+
+/* Card frames use square corners; interactive controls, pills and icons keep
+   their distinct shapes for affordance and status recognition. */
+.intro,
+.mode-notice,
+.panel,
+.upload-control,
+.privacy-hint,
+.demo-options label > span,
+.status-card,
+.analysis-error,
+.demo-result-notice,
+.risk-card,
+.summary-card,
+.result-section,
+.low-risk-reminder,
+.result-feedback,
+.feedback-panel,
+.update-toast {
+  border-radius: 0 !important;
+}
