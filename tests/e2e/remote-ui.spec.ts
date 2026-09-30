@@ -75,6 +75,37 @@ for (const [width, height] of [
       const resultBox = await page.locator(".result-panel").boundingBox();
       expect(resultBox).not.toBeNull();
       expect(resultBox!.y).toBeGreaterThanOrEqual(height);
+
+      const primaryLine = page.locator(".hero-title-primary-line");
+      const accentLine = page.locator(".hero-title-accent-line");
+      const subheadline = page.locator(".hero-title-secondary");
+      const [primaryBox, accentBox, primaryColor, accentColor, subheadColor] =
+        await Promise.all([
+          primaryLine.boundingBox(),
+          accentLine.boundingBox(),
+          primaryLine.evaluate((element) => getComputedStyle(element).color),
+          accentLine.evaluate((element) => getComputedStyle(element).color),
+          subheadline.evaluate((element) => getComputedStyle(element).color),
+        ]);
+      expect(primaryBox).not.toBeNull();
+      expect(accentBox).not.toBeNull();
+      expect(accentBox!.y).toBeGreaterThanOrEqual(
+        primaryBox!.y + primaryBox!.height,
+      );
+      expect(accentColor).not.toBe(primaryColor);
+      expect(subheadColor).toBe(primaryColor);
+
+      const copyLines = page.locator(".hero-copy-line");
+      await expect(copyLines).toHaveCount(2);
+      const [firstCopyBox, secondCopyBox] = await Promise.all([
+        copyLines.nth(0).boundingBox(),
+        copyLines.nth(1).boundingBox(),
+      ]);
+      expect(firstCopyBox).not.toBeNull();
+      expect(secondCopyBox).not.toBeNull();
+      expect(secondCopyBox!.y).toBeGreaterThanOrEqual(
+        firstCopyBox!.y + firstCopyBox!.height,
+      );
     }
 
     expect(

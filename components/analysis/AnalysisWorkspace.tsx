@@ -470,11 +470,18 @@ export function AnalysisWorkspace({
               </p>
               <h1
                 id="page-title"
-                aria-label={isHomepage ? "可疑截圖，先交給 AI 看看" : undefined}
+                aria-label={
+                  isHomepage
+                    ? "多一分確認，少一分風險；可疑截圖，先交給 AI 看看"
+                    : undefined
+                }
               >
                 {isHomepage && (
                   <span className="hero-title-primary" aria-hidden="true">
-                    多一分確認，少一分風險
+                    <span className="hero-title-primary-line">
+                      多一分確認，
+                    </span>{" "}
+                    <span className="hero-title-accent-line">少一分風險</span>
                   </span>
                 )}
                 <span
@@ -484,7 +491,18 @@ export function AnalysisWorkspace({
                 </span>
               </h1>
               <p className="intro-copy">
-                在點擊連結、付款或提供驗證碼前，先整理圖片中的風險訊號與下一步行動。
+                {isHomepage ? (
+                  <>
+                    <span className="hero-copy-line">
+                      在點擊連結、付款或提供驗證碼前，
+                    </span>{" "}
+                    <span className="hero-copy-line">
+                      先整理圖片中的風險訊號與下一步行動。
+                    </span>
+                  </>
+                ) : (
+                  "在點擊連結、付款或提供驗證碼前，先整理圖片中的風險訊號與下一步行動。"
+                )}
               </p>
               {showModeNotice && (
                 <div
