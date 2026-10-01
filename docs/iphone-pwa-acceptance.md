@@ -4,7 +4,7 @@
 
 ## 驗收前
 
-測試網址為`https://scamshield-ai-fawn.vercel.app/`。每次測試先由操作者提供當次正式deployment ID、完整Git SHA與安全狀態，不能把本機分支SHA填成已部署版。Privacy分支本輪尚未部署；若正式頁仍未顯示90天／cs.sakana@gmail.com，標記PENDING_DEPLOYMENT，不要求使用者假裝已看到新版。
+測試網址為`https://scamshield-ai-fawn.vercel.app/`。每次測試先由操作者提供當次正式deployment ID、完整Git SHA與安全狀態，不能把本機分支SHA填成已部署版。Privacy分支本輪尚未部署；若正式頁仍未顯示90天／csfishy@gmail.com，標記PENDING_DEPLOYMENT，不要求使用者假裝已看到新版。
 
 Google表單描述已於2026-09-29經核准更新，桌面匿名GET確認90天／公開Email／刪除與長期同意；沒有本輪新提交。這不完成下面任何iPhone項目，真機仍須核對實際畫面與操作。
 
@@ -76,7 +76,7 @@ Google表單描述已於2026-09-29經核准更新，桌面匿名GET確認90天�
 | F3 | 一般無entry連結 | 同一正式表單可開啟，Request ID／build可空白；無檔案上傳 | NOT_RUN |
 | F4 | 僅在本次已核准時提交1筆合成回覆，Email留空 | 送出成功，記錄本次時間；此前合成回覆不算本次提交，未核准則NOT_RUN | NOT_RUN |
 | F5 | 送出確認頁／返回原站 | 看不到其他人的回覆摘要或試算表；能返回原頁，未新送分析 | NOT_RUN |
-| F6 | 讀取回饋說明 | 90天、cs.sakana@gmail.com、刪除方式一致；Google管理者清理為人工流程，不假稱自動刪除 | NOT_RUN |
+| F6 | 讀取回饋說明 | 90天、csfishy@gmail.com、刪除方式一致；Google管理者清理為人工流程，不假稱自動刪除 | NOT_RUN |
 
 ## G. 證據模板與判定
 

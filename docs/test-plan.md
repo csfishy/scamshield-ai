@@ -255,7 +255,7 @@ p95 樣本少時列全部耗時與樣本量，不宣稱具有統計代表性。
 | ID | 情境 | 必要斷言／層級 |
 | --- | --- | --- |
 | PRIV-90-01 | Privacy頁政策 | 明確最長90天、到期刪除或去識別、較長期案例另取適當同意；render／E2E |
-| PRIV-90-02 | 公開聯絡 | 精確`cs.sakana@gmail.com`，Privacy問題、資料刪除／Beta問題用途可見；render／E2E |
+| PRIV-90-02 | 公開聯絡 | 精確`csfishy@gmail.com`，Privacy問題、資料刪除／Beta問題用途可見；render／E2E |
 | PRIV-90-03 | mailto／複製 | 正確地址及編碼主旨`ScamShield Privacy / Data Request`，不帶正文／附件／IP；可複製、可鍵盤操作；unit／E2E |
 | PRIV-90-04 | 舊占位文字 | 新公開頁沒有舊保存／聯絡TBD或待確認占位；歷史驗收文件可保留原始缺項，不由snapshot測試抹除；render／E2E |
 | PRIV-90-05 | 各服務保留區分 | 應用／Redis／OpenAI／部署日誌／Google分層，不宣稱所有平台零留存；render |

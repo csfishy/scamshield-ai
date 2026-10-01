@@ -282,7 +282,7 @@ Timeout 部署檢查：`AI_TIMEOUT_MS=20000`、`ANALYSIS_TIMEOUT_MS=25000`，上
 
 Google 表單公開 URL、三個 `entry.<digits>` 與 Email／build 設定詳 [.env.example](../.env.example)，外部表單管理清單見 [Beta 檢核](public-beta-readiness.md#2-google-表單設定)。頁面每次 server render 讀取 allowlist 設定，不把整份 env 給 client。Vercel env 修改需新部署；只有 Redis runtime key 的变更可立即影響後續 admission，不需 rebuild。App build identifier 缺少時不捏造 revision。
 
-公開Privacy聯絡`cs.sakana@gmail.com`及90天回饋政策由`lib/privacy.ts`集中維護，是使用者正式指定的公開資訊；`FEEDBACK_CONTACT_EMAIL`仍是可選備用聯絡設定。修改公開常量／頁面需要build與後續另行授權部署；本機PASS不代表舊Production已生效。Google表單說明與人工90天清理／刪除流程見[Privacy operations](privacy-operations.md)，Google回覆不由本應用自動清理。linked Sheets／CSV不因刪Forms回覆或unlink自動消失，管理者需處理每一份受管副本。
+公開Privacy聯絡`csfishy@gmail.com`及90天回饋政策由`lib/privacy.ts`集中維護，是使用者正式指定的公開資訊；`FEEDBACK_CONTACT_EMAIL`仍是可選備用聯絡設定。修改公開常量／頁面需要build與後續另行授權部署；本機PASS不代表舊Production已生效。Google表單說明與人工90天清理／刪除流程見[Privacy operations](privacy-operations.md)，Google回覆不由本應用自動清理。linked Sheets／CSV不因刪Forms回覆或unlink自動消失，管理者需處理每一份受管副本。
 
 本輪Google描述已在使用者明確核准後更新，08:19 UTC匿名GET200確認90天／公開Email／刪除與長期同意；沒有新增回覆、題目或存取設定變動。這是外部描述對齊PASS，不是自動清理已上線或整體Feedback gate已PASS。本機Privacy回歸已通過，Production網站部署仍待另行核准；當次證據見[Privacy／Final Gates](privacy-final-gates-2026-09-29.md)。
 

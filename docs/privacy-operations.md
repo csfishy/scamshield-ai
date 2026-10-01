@@ -1,6 +1,6 @@
 # 隱私與回饋資料管理
 
-政策輸入日期：2026-09-29。使用者已正式指定回饋最長保存90天，以及公開聯絡／刪除申請Email **cs.sakana@gmail.com**。這個地址是可進Git與瀏覽器的公開產品資訊，與使用者在表單填寫的私人Email不同；後者不能進公開日誌、測試快照或issue。
+政策更新日期：2026-10-01。使用者已正式指定回饋最長保存90天，以及公開聯絡／刪除申請Email **csfishy@gmail.com**。這個地址是可進Git與瀏覽器的公開產品資訊，與使用者在表單填寫的私人Email不同；後者不能進公開日誌、測試快照或issue。
 
 本輪在`codex/privacy-and-final-gates`更新網站與文件，不部署Production。`LOCAL_PRIVACY_IMPLEMENTATION=PASS`，本機測試已完成；Google描述也已更新及匿名GET確認。線上`PRIVACY_COMPLETENESS`仍為 **PARTIAL／PENDING_DEPLOYMENT**，不能把分支頁面完成當成舊Production已顯示新政策。歷史`BLOCKED_USER_INPUT`保留為當時紀錄；90天與公開聯絡資訊已獲決策，不再等待這兩項輸入。
 
@@ -8,7 +8,7 @@
 
 回饋用於排查問題、改善產品與Beta驗收。由管理者持有的可識別表單回覆，原則上最長保存90天，期限內完成刪除或去識別化。要把特定回饋或案例用於更長期測試／品質改善，先另行取得適當同意，不因「可能有用」就自動永久保存。
 
-一般聯絡、Privacy疑問、回饋刪除、Beta問題或其他資料使用問題，可寄至[cs.sakana@gmail.com](mailto:cs.sakana@gmail.com?subject=ScamShield%20Privacy%20%2F%20Data%20Request)。mailto只設定收件人及`ScamShield Privacy / Data Request`主旨，不預填圖片、IP、完整分析或其他敏感正文。網站提供可複製地址，沒有寄信API／SMTP；是否送信由使用者的郵件軟體決定。
+一般聯絡、Privacy疑問、回饋刪除、Beta問題或其他資料使用問題，可寄至[csfishy@gmail.com](mailto:csfishy@gmail.com?subject=ScamShield%20Privacy%20%2F%20Data%20Request)。mailto只設定收件人及`ScamShield Privacy / Data Request`主旨，不預填圖片、IP、完整分析或其他敏感正文。網站提供可複製地址，沒有寄信API／SMTP；是否送信由使用者的郵件軟體決定。
 
 公開政策放在`/privacy`，聯絡區為`/privacy#contact`；首頁、分析成功與錯誤回饋均應可找到。`lib/privacy.ts`集中公開Email與90天常量。`FEEDBACK_CONTACT_EMAIL`仍是可選的其他回饋備用設定，不是這個公開Privacy聯絡地址的secret或必要開關。
 
@@ -45,14 +45,14 @@ IP HMAC只降低直接辨識風險，並非完全匿名；不同NAT／VPN／IPv6
 
 ## 4. 刪除申請
 
-使用者可寄信至 **cs.sakana@gmail.com**，提供足以定位回饋的最少資訊，例如大約提交日期、回饋類型與當時Request ID（若有）。不要要求重送截圖、OTP、密碼、身分證件或完整分析；也不要把信件轉貼到公開issue。若匿名回覆無法唯一定位，說明限制並請求最少補充資訊，不擅自刪除其他人的回覆。
+使用者可寄信至 **csfishy@gmail.com**，提供足以定位回饋的最少資訊，例如大約提交日期、回饋類型與當時Request ID（若有）。不要要求重送截圖、OTP、密碼、身分證件或完整分析；也不要把信件轉貼到公開issue。若匿名回覆無法唯一定位，說明限制並請求最少補充資訊，不擅自刪除其他人的回覆。
 
 管理者確認目標後，依第3節處理Forms與自己持有的副本，再告知處理結果與第三方獨立保留限制。本輪不捏造回覆SLA、公司／法人、DPO或法律承諾；聯絡信箱也沒有新增未經使用者決策的保存期限。
 
 ## 5. 發布前對齊與驗收
 
-- [x] 分支`/privacy`、回饋說明與公開常量一致：90天、cs.sakana@gmail.com、長期用途另取得適當同意。
-- [x] Google描述政策對齊：使用者明確核准後更新，2026-09-29 08:19 UTC新匿名GET200實見90天、cs.sakana@gmail.com、刪除及長期同意。只改描述，沒有新回覆、題目／存取設定變更；不當作本輪送出或摘要管理重驗。
+- [x] 分支`/privacy`、回饋說明與公開常量一致：90天、csfishy@gmail.com、長期用途另取得適當同意。
+- [ ] Google描述聯絡資訊需另行重驗；2026-09-29 08:19 UTC匿名GET200的歷史紀錄是90天、cs.sakana@gmail.com、刪除及長期同意，不能當作新地址已對齊。
 - [ ] 將來的完整外部驗收仍核對無強制登入、Email選填、無檔案上傳、無其他填答者摘要及iPhone流程；歷史導覽根因未定，整體FEEDBACK_EXTERNAL_ACCEPTANCE維持PARTIAL。
 - [ ] 管理者接手90天清理／刪除申請，核對有無Sheets／exports與期限提醒。不是網站自動執行。
 - [x] 本機Privacy／Feedback unit、HTTP、E2E、build與bundle驗證通過；公開Email可在bundle出現，Redis／Provider秘密不可。實際338tests／20E2E與首次E2E失敗保留在[本輪紀錄](privacy-final-gates-2026-09-29.md)。

@@ -23,7 +23,7 @@ describe("public privacy policy and transport isolation", () => {
   });
 
   it("provides a public, fixed contact independently of optional feedback configuration", () => {
-    expect(PUBLIC_PRIVACY_CONTACT_EMAIL).toBe("cs.sakana@gmail.com");
+    expect(PUBLIC_PRIVACY_CONTACT_EMAIL).toBe("csfishy@gmail.com");
     expect(getPublicSiteConfig({}).contactEmail).toBeUndefined();
     expect(
       getPublicSiteConfig({ FEEDBACK_CONTACT_EMAIL: "optional@example.com" })

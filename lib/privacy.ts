@@ -1,5 +1,5 @@
 /** User-approved public product policy. This contact address is not a secret. */
-export const PUBLIC_PRIVACY_CONTACT_EMAIL = "cs.sakana@gmail.com";
+export const PUBLIC_PRIVACY_CONTACT_EMAIL = "csfishy@gmail.com";
 export const FEEDBACK_RETENTION_DAYS = 90;
 export const PRIVACY_EMAIL_SUBJECT = "ScamShield Privacy / Data Request";
 export const PRIVACY_CONTACT_MAILTO = `mailto:${encodeURIComponent(PUBLIC_PRIVACY_CONTACT_EMAIL)}?subject=${encodeURIComponent(PRIVACY_EMAIL_SUBJECT)}`;

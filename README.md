@@ -26,7 +26,7 @@
 | 部署 | Production同SHA非AI部署READY；正式HTTP→Redis runtime停用守門有獨立實測證據 | 本分支隱私變更新部署與匿名驗收；目前正式HTTP短窗429仍NOT_RUN |
 | 上傳 | Client／Server 共用 v2 限制：單張 JPEG／PNG，最大 4 MiB | 維持 contract 同步 |
 | 測試 | unit／contract／HTTP integration／E2E、真Redis隔離測試與AI OFF smoke；每階段保留自己的數量／SHA | 本分支新回歸結果、AI品質及iPhone gate |
-| 回饋 | 首頁、成功與錯誤入口；Google表單、Request ID複製；本機Privacy測試PASS，Google說明已匿名確認90天／公開聯絡`cs.sakana@gmail.com` | Production部署新政策、管理者人工清理交接、歷史導覽失敗根因與iPhone實測 |
+| 回饋 | 首頁、成功與錯誤入口；Google表單、Request ID複製；網站公開聯絡更新為`csfishy@gmail.com` | Production部署與匿名驗收、Google說明聯絡資訊重驗、管理者人工清理交接、iPhone實測 |
 | 防濫用／成本 | Production獨立Redis整合21 checks PASS、HTTP runtime gate PASS；server啟用設定與runtime gate目前都停用 | 正式HTTP429未執行；真Provider費用／品質另行授權 |
 | 會員／內容資料庫／queue | 無；Redis 只存短期額度與控制狀態 | 本次不加入 |
 
@@ -120,7 +120,7 @@ Beta 必要設定詳見 [.env.example](.env.example) 與 [Runbook 第 11 節](do
 
 網頁使用 `crypto.randomUUID()` 建立匿名裝置 ID 並保存於同來源 `localStorage`；不使用瀏覽器指紋。無法取得裝置 ID 的舊 client 退回 HMAC IP-derived 裝置 bucket。Redis-backed circuit breaker 預設在 60 秒內 5 次 qualifying Provider failure 後 OPEN 30 秒，之後只允許 1 個 HALF_OPEN probe；OpenAI adapter 明確 `maxRetries:0`，因此每個使用者請求最多一次 Provider call。Redis 無法確認 admission、quota、concurrency 或 circuit state 時一律 fail closed，不會退回 process-local 或 unlimited 模式。完整可調參數見 [.env.example](.env.example)。
 
-Google表單只在使用者點選後開啟，可預填Request ID、版本與回饋類型；缺少表單時不使用假連結。一般聯絡、Privacy疑問、回饋刪除或Beta問題可寄至 **cs.sakana@gmail.com**，Privacy頁提供mailto及複製。這是公開產品資訊，不是secret；表單中的使用者Email仍是選填私人資料。
+Google表單只在使用者點選後開啟，可預填Request ID、版本與回饋類型；缺少表單時不使用假連結。一般聯絡、Privacy疑問、回饋刪除或Beta問題可寄至 **csfishy@gmail.com**，Privacy頁提供mailto及複製。這是公開產品資訊，不是secret；表單中的使用者Email仍是選填私人資料。
 
 管理者持有的表單回饋原則最長保存90天，用於排查問題、產品改善與Beta驗收，到期刪除或去識別；長期測試案例須另行取得適當同意。網站沒有自動刪除Google回覆的服務，管理者須依[隱私操作流程](docs/privacy-operations.md)處理Forms、Sheets及匯出副本。網站不自動上傳回饋截圖、不持久保存原圖或完整分析。OpenAI的`store:false`與各平台防濫用／日誌保留不同，不能宣稱全部零留存。分支頁面與本機測試完成仍不代表Production新政策已生效。
 
