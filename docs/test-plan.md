@@ -107,7 +107,7 @@ timeout unit test 使用可控 clock／stub，不讓每次 CI 等待 20／25 秒
 
 無法取得真實裝置時記錄「未驗證」，不得用桌面模擬器宣稱手機已驗收。
 
-逐步真iPhone Safari／PWA安裝、AI OFF圖片、外部表單返回、舊worker更新、離線／多分頁與結果模板見[iPhone／PWA acceptance](iphone-pwa-acceptance.md)。當前gate仍NOT_RUN；本輪只準備人工流程。
+逐步真iPhone Safari／PWA安裝、AI OFF圖片、外部表單返回、舊worker更新、離線／多分頁與結果模板見[iPhone／PWA acceptance](iphone-pwa-acceptance.md)。歷史整體gate為PASS（USER-MANUAL），受測版本／逐項明細未提供；新版UI需要另行實機重驗。
 
 ## 5. AI 評估集與人工標註
 
@@ -248,7 +248,7 @@ p95 樣本少時列全部耗時與樣本量，不宣稱具有統計代表性。
 
 ## 11. Privacy與最終gates分支回歸
 
-本節是驗收要求，不預報測試數量或PASS。公開政策以[Privacy operations](privacy-operations.md)及`lib/privacy.ts`為準；本輪在功能分支完成程式與本機測試，不部署Production、調整AI gates或呼叫真Provider。
+本節保留Privacy功能分支驗收要求與當時結果。公開政策以[Privacy operations](privacy-operations.md)及`lib/privacy.ts`為準。後續正式非AI發布與fresh重驗見[Production原始報告](production-privacy-feedback-final-acceptance-2026-09-29.md)；其他revision的AI失敗及暫停見[歷史索引](release-evidence-index.md)。2026-10-01新信箱版`ff64705`另有474tests、typecheck、lint、build及Backend CI PASS。
 
 本輪已實跑：Node24.19.0／npm12.0.2；typecheck、lint（排除不屬本輪的`deliverables/**`）、14files／338tests（含17HTTP）、build、bundle37files／0markers、20E2E（9 Mock/backend＋11 Remote UI）通過。E2E首次有1項`ERR_NO_BUFFER_SPACE`失敗，未改程式、相同命令重跑20項通過；原始失敗與重跑都保留於[本輪紀錄](privacy-final-gates-2026-09-29.md)，不將它改寫為從未失敗。Google描述對齊另經真匿名GET200確認，沒有本輪新表單送出；不由本機stub推定外部PASS。
 
@@ -272,4 +272,4 @@ p95 樣本少時列全部耗時與樣本量，不宣稱具有統計代表性。
 
 執行`npm run typecheck`、`npm run lint`、`npm test`、`npm run build`、`npm run verify:bundle`及相關`npm run test:e2e`，另作diff check與secrets scan。Email為本輪明確授權的公開產品資訊，不把它當秘密誤報；Redis／HMAC／Provider憑證仍嚴格檢查。unit／integration／E2E數量以實際runner輸出記錄，不把同一批測試重複相加。
 
-Production保持`ANALYSIS_ENABLED=false`及runtime `disabled`。本輪不因手機流程準備或品質計畫新增真實AI呼叫，`AI_QUALITY_GATE`／`IPHONE_PWA_ACCEPTANCE`維持NOT_RUN；有限AI計畫只能作下一輪明確calls／美元預算核准的輸入，不降低第6節品質門檻。
+最新AI驗收結束時`ANALYSIS_ENABLED=false`、runtime=`disabled`、PUBLIC_BETA=PAUSED。歷史iPhone整體PASS（USER-MANUAL）的受測SHA／逐case未提供，目前新版需重驗。較早限定案例的AI品質PASS不能覆蓋後續可靠性FAIL；付費AI計畫需明確calls／美元預算及恢復範圍，不降低第6節品質門檻。本次文件整理不切換AI設定或執行真Provider。

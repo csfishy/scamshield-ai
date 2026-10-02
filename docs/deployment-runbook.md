@@ -1,7 +1,7 @@
 # ScamShield AI 開發、遷移與部署手冊
 
-- 版本：2.3｜2026-09-29
-- 狀態：第9–10節及第一階段快照保留歷史。Production非AI已部署，正式HTTP runtime gate有獨立證據；本輪只在`codex/privacy-and-final-gates`更新隱私與驗收準備，禁止Production部署、修改AI gates或真實AI呼叫。當次結果見[Privacy／Final Gates](privacy-final-gates-2026-09-29.md)
+- 版本：2.4｜2026-10-02
+- 狀態：Production已發布Privacy、手機UI及`csfishy@gmail.com`；文件整理的程式基準為`ff64705`。最新AI驗收紀錄為Public Beta PAUSED，恢復條件未滿足。各revision的部署、驗收與失敗見[歷史索引](release-evidence-index.md)，實際目前deployment SHA以平台核對。本次整理不切換AI或Redis設定。
 - Owner：B（初始化／部署），A（前端／PWA 更新）
 - 配套：[SDD](sdd.md)、[測試與 gate](test-plan.md)、[API v2](api-contract.md)
 
@@ -206,7 +206,7 @@ Preview 先設 mock，確認受控存取確實攔截未授权請求，再在已�
 
 ## 11. Beta 設定與操作（2026-09-29）
 
-本節是操作文件，**範例不代表本輪授權或已執行**。第一、二階段結果維持原紀錄；Production非AI已在後續同SHA驗收。現用Production namespace為`production-beta`，Redis為獨立資源，主鍵disabled。這次Privacy分支不修改Production Vercel／Redis設定及資料、不重新部署、不呼叫AI；第9–10節舊SHA的PASS不套用新部署。
+本節是操作文件，**範例不代表本輪授權或已執行**。第一、二階段保留原紀錄；Privacy後續正式非AI驗收見[原始報告](production-privacy-feedback-final-acceptance-2026-09-29.md)。已記錄的Production namespace為`production-beta`，最後付費驗收結束時主控制鍵disabled；操作前仍需讀回實際設定。第9–10節舊SHA的PASS不套用新部署。
 
 ### 11.1 設定順序與隔離
 
@@ -284,7 +284,7 @@ Google 表單公開 URL、三個 `entry.<digits>` 與 Email／build 設定詳 [.
 
 公開Privacy聯絡`csfishy@gmail.com`及90天回饋政策由`lib/privacy.ts`集中維護，是使用者正式指定的公開資訊；`FEEDBACK_CONTACT_EMAIL`仍是可選備用聯絡設定。修改公開常量／頁面需要build與後續另行授權部署；本機PASS不代表舊Production已生效。Google表單說明與人工90天清理／刪除流程見[Privacy operations](privacy-operations.md)，Google回覆不由本應用自動清理。linked Sheets／CSV不因刪Forms回覆或unlink自動消失，管理者需處理每一份受管副本。
 
-本輪Google描述已在使用者明確核准後更新，08:19 UTC匿名GET200確認90天／公開Email／刪除與長期同意；沒有新增回覆、題目或存取設定變動。這是外部描述對齊PASS，不是自動清理已上線或整體Feedback gate已PASS。本機Privacy回歸已通過，Production網站部署仍待另行核准；當次證據見[Privacy／Final Gates](privacy-final-gates-2026-09-29.md)。
+2026-09-29的Google舊信箱政策及Production回饋驗收見[正式非AI報告](production-privacy-feedback-final-acceptance-2026-09-29.md)；分支首次E2E失敗／重跑見[歷史報告](privacy-final-gates-2026-09-29.md)。2026-10-01的`ff64705`已部署並確認首頁／Privacy／新信箱mailto。Google的新地址對齊仍待獨立確認，人工90天清理不能當作網站自動功能。
 
 回復需同步檢查程式、公開契約、PWA、mode、啟用變數、Redis namespace／key、Provider 憑證與費用設定；rollback 不會自動回復 Redis 資料或控制鍵。舊 UI 遇新未知 code 應安全顯示 fallback，禁止自動重新送出；要在已安裝舊 PWA 實測後才視為相容。
 

@@ -1,0 +1,54 @@
+[
+  {
+    "start": 0.5,
+    "text": "A delivery problem. A refund failure. An account warning. It looks familiar — and it wants you to act now."
+  },
+  {
+    "start": 9.35,
+    "text": "Scammers imitate the brands and moments we trust. One rushed tap can expose passwords, payment details, or an account."
+  },
+  {
+    "start": 17.4,
+    "text": "Before you tap, pause. The warning signs are often visible."
+  },
+  {
+    "start": 22.1,
+    "text": "Look for urgency. Unknown senders. Domains that resemble a real service but do not belong to it. And familiar logos or confident wording designed to lower your guard."
+  },
+  {
+    "start": 34.8,
+    "text": "Meet ScamShield: a mobile-first progressive web app that helps you assess a suspicious message or screenshot before you click."
+  },
+  {
+    "start": 43.8,
+    "text": "Open ScamShield on your phone, choose a screenshot, and submit it for analysis. The flow is built for the moment that matters: when you are uncertain and need a clearer next step."
+  },
+  {
+    "start": 56.5,
+    "text": "ScamShield uses A.I.-assisted analysis to examine what is visible in the image, including sender context, wording, links, and signs of impersonation."
+  },
+  {
+    "start": 66.5,
+    "text": "In seconds, it returns a risk level, a plain-language explanation, the signals that influenced the assessment, and practical guidance for what to do next."
+  },
+  {
+    "start": 78.3,
+    "text": "You see the risk at a glance, without having to decode every detail yourself."
+  },
+  {
+    "start": 85.3,
+    "text": "You understand why the message looks suspicious, from sender mismatches to time pressure and payment requests."
+  },
+  {
+    "start": 93.0,
+    "text": "And you get safer actions: do not tap the link, never share passwords or one-time codes, and verify through the official app or website."
+  },
+  {
+    "start": 103.8,
+    "text": "ScamShield supports your judgment; it does not replace it. Low risk is never a guarantee."
+  },
+  {
+    "start": 110.0,
+    "text": "Take a breath. Check the screenshot. Choose the safer next step. ScamShield — Check before you trust."
+  }
+]

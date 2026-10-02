@@ -1,22 +1,25 @@
 # Public Beta Readiness — 目前狀態與歷史快照
 
-## 目前隱私與最終 gates 分支（2026-09-29）
+## 最新已知狀態（2026-10-02文件整理）
 
-目前工作分支為`codex/privacy-and-final-gates`，基於已核對的`origin/main`／Production SHA `5a788a91f7c934667cb8f216bcc393bd164084dd`。使用者已決定：回饋最長90天、刪除或去識別、長期案例另取得適當同意；公開聯絡／刪除Email為 **cs.sakana@gmail.com**。這些資訊不再是BLOCKED_USER_INPUT，但本分支沒有Production部署授權，不能宣稱線上舊頁已更新。
+本次整理以已發布的`main@ff64705d9315b65f0b38b7b435997ec46030feb1`為程式基準。2026-10-01已完成Production部署、GitHub Backend CI與首頁／Privacy匿名HTTP200驗證，公開聯絡／刪除Email為 **csfishy@gmail.com**。後續文件提交的部署版本須以平台紀錄核對，不沿用舊deployment ID。
 
-本輪實際命令、測試數量、外部表單對齊、Git與最終安全核對集中記於[Privacy／Final Gates 2026-09-29](privacy-final-gates-2026-09-29.md)。[Privacy操作](privacy-operations.md)說明90天人工清理、Sheets／匯出副本及刪除申請；[iPhone／PWA清單](iphone-pwa-acceptance.md)等待真機結果；[有限Production AI計畫](production-ai-quality-plan.md)只準備素材與程序，calls／USD尚待核准。以下狀態與第1–8節的**第一階段歷史**不同：
+2026-09-29至09-30的驗收與事故按revision保留於[歷史索引](release-evidence-index.md)。較早的AI品質PASS後來有launch失敗、結構殘留、逾時及incomplete response紀錄；最新付費驗收的最終狀態為Public Beta PAUSED，恢復條件未滿足。這次整理文件不重跑付費AI或切換runtime；以下記錄已知證據的範圍，不當作今日重新讀回Redis設定。
 
 | 項目 | 現況／範圍 |
 | --- | --- |
-| Production安全基準 | SHA `5a788a9…`、`dpl_3fVJ2VKFGEF4mGkYxRhkYzH65sSK` READY；canonical匿名可用；`ANALYSIS_ENABLED=false`、主runtime=`disabled`／TTL=-1；本輪不啟用AI |
+| Production版本 | `ff64705`已部署，Vercel與Backend CI成功；本次文件整理前的程式基準 |
+| 最後記錄的AI安全狀態 | `ANALYSIS_ENABLED=false`、runtime=`disabled`；最近的付費驗收結束後Public Beta PAUSED，本次不變更設定 |
 | REDIS_INTEGRATION | PASS（既有Production資源隔離21checks／627commands證據）；不是本輪重跑 |
-| PRODUCTION_HTTP_REDIS_RUNTIME_GATE | PASS（先前同SHA runtime-only新部署與逐筆遙測）；本輪保持雙層OFF、不重做切換 |
+| PRODUCTION_HTTP_REDIS_RUNTIME_GATE | 歷史PASS；只對該次部署與逐筆遙測成立，本次不重做切換 |
 | PRODUCTION_HTTP_RATE_LIMIT | NOT_RUN；先前因兩gate同開可能使其他公開訪客觸發Provider而停止，沒有用standalone測試冒充HTTP429 |
-| FEEDBACK_EXTERNAL_ACCEPTANCE | PARTIAL；本輪Google描述更新後匿名GET200（08:19 UTC）已確認90天／Email／刪除／長期同意；沒有新送出，歷史導覽根因未定及iPhone未驗仍保留 |
-| LOCAL_PRIVACY_IMPLEMENTATION | PASS；Node24.19.0／npm12.0.2，typecheck、lint、14files／338tests（含17HTTP）、build、bundle37files／0markers、20E2E通過；完整命令與首輪E2E失敗／同命令重跑證據見本輪紀錄 |
-| PRIVACY_COMPLETENESS | **PARTIAL／PENDING_DEPLOYMENT**：政策、本機實作／測試及Google描述對齊已完成；管理者人工清理仍需交接，Production網站須另獲授權部署並匿名確認後才能PASS |
-| IPHONE_PWA_ACCEPTANCE／AI_QUALITY_GATE | NOT_RUN；只有人工清單／下一階段計畫，不做真機代跑或付費AI |
-| PRODUCTION_ACCEPTANCE／PUBLIC_BETA | PARTIAL／NOT_READY；本分支完成不等於Production新版、品質或公開核准 |
+| FEEDBACK_EXTERNAL_ACCEPTANCE | 2026-09-29舊信箱版正式非AI驗收PASS；Google新信箱對齊未重驗 |
+| LOCAL_AUTOMATED_TESTS | `ff64705`的Node24.19.0／npm12.0.2 typecheck、lint、474tests、build與Backend CI PASS；原338tests／20E2E保留在各歷史報告 |
+| PRIVACY_COMPLETENESS | 網站90天政策與公開新信箱已部署；2026-10-01首頁／Privacy／mailto確認通過，Google說明與人工清理另行核對 |
+| IPHONE_PWA_ACCEPTANCE | 歷史PASS（USER-MANUAL）；機型／版本／受測SHA／逐case未提供，目前新版需重驗 |
+| AI_QUALITY_GATE | 2026-09-29限定案例曾PASS；後續可靠性FAIL，不延伸到當前revision |
+| PRODUCTION_ACCEPTANCE／PUBLIC_BETA_REOPEN_READINESS | 重新開放BLOCKED；最新incomplete-response驗收未產生有效分析結果 |
+| PUBLIC_BETA | 最新測試紀錄為PAUSED |
 
 原始Production非AI證據保存在當時ignored `.tools/production-release-2026-09-29.md`與`.tools/production-non-ai-final-acceptance-2026-09-29.md`；這是本機證據路徑，不假裝已提交到repository。當時5筆自有分析請求逐筆遙測Provider=0；不是Provider整個帳戶歷史用量，也不代表本輪有呼叫。
 

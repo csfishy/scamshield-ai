@@ -1,12 +1,12 @@
 # iPhone Safari／PWA 真機驗收
 
-**IPHONE_PWA_ACCEPTANCE = NOT_RUN。** 本檔是由使用者在真實iPhone執行的步驟與紀錄模板，不是已完成的證據。桌面Chromium、responsive mode、Playwright WebKit或Simulator結果不能改寫成iPhone Safari PASS。
+**歷史IPHONE_PWA_ACCEPTANCE = PASS（USER-MANUAL）。** 原始文件記錄使用者回報「iPhone Safari＋PWA 實機驗收：OK」，見[正式非AI報告](production-privacy-feedback-final-acceptance-2026-09-29.md#f-iphonepwa)。機型、iOS／Safari版本、時間、受測SHA／deployment及逐case明細未提供，不能把整體確認綁定目前新版UI。以下保留重驗步驟；逐case的NOT_RUN表示缺少該項可核對明細。
 
 ## 驗收前
 
-測試網址為`https://scamshield-ai-fawn.vercel.app/`。每次測試先由操作者提供當次正式deployment ID、完整Git SHA與安全狀態，不能把本機分支SHA填成已部署版。Privacy分支本輪尚未部署；若正式頁仍未顯示90天／csfishy@gmail.com，標記PENDING_DEPLOYMENT，不要求使用者假裝已看到新版。
+測試網址為`https://scamshield-ai-fawn.vercel.app/`。`ff64705`已於2026-10-01部署並匿名確認新信箱；每次實機重驗仍先記錄當次正式deployment ID、完整Git SHA與安全狀態，不能由本機分支或舊報告推定受測版本。聯絡資訊應為90天／csfishy@gmail.com。
 
-Google表單描述已於2026-09-29經核准更新，桌面匿名GET確認90天／公開Email／刪除與長期同意；沒有本輪新提交。這不完成下面任何iPhone項目，真機仍須核對實際畫面與操作。
+Google表單描述曾於2026-09-29匿名確認90天／舊公開Email／刪除與長期同意；新信箱對齊尚待獨立確認。真機仍須核對實際畫面與操作。
 
 全程保持`ANALYSIS_ENABLED=false`、Production runtime control=`disabled`，不得為手機驗收啟用真AI。只用自製、無個資的JPEG／PNG（例如自行製作一張寫著「手機驗收」的測試圖），不要用自己的聊天、證件或OTP。先記錄允許的分析POST數與是否允許本次合成Google回覆；建議各流程共用同一次已產生的錯誤狀態，避免不必要重送。若無本次送出授權，Google送出步驟NOT_RUN。
 

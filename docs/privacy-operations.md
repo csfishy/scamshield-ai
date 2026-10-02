@@ -2,7 +2,7 @@
 
 政策更新日期：2026-10-01。使用者已正式指定回饋最長保存90天，以及公開聯絡／刪除申請Email **csfishy@gmail.com**。這個地址是可進Git與瀏覽器的公開產品資訊，與使用者在表單填寫的私人Email不同；後者不能進公開日誌、測試快照或issue。
 
-本輪在`codex/privacy-and-final-gates`更新網站與文件，不部署Production。`LOCAL_PRIVACY_IMPLEMENTATION=PASS`，本機測試已完成；Google描述也已更新及匿名GET確認。線上`PRIVACY_COMPLETENESS`仍為 **PARTIAL／PENDING_DEPLOYMENT**，不能把分支頁面完成當成舊Production已顯示新政策。歷史`BLOCKED_USER_INPUT`保留為當時紀錄；90天與公開聯絡資訊已獲決策，不再等待這兩項輸入。
+2026-09-29的Production Privacy／Feedback正式非AI驗收PASS，證據見[原始報告](production-privacy-feedback-final-acceptance-2026-09-29.md)。2026-10-01的`ff64705`已將新信箱部署至Production，首頁／Privacy匿名HTTP200、信箱文字與mailto確認通過。Google表單的新信箱對齊仍待獨立確認；各階段與失敗紀錄見[歷史索引](release-evidence-index.md)。政策顯示通過不代表管理者已執行90天清理。
 
 ## 1. 對使用者公開的政策
 
@@ -53,10 +53,10 @@ IP HMAC只降低直接辨識風險，並非完全匿名；不同NAT／VPN／IPv6
 
 - [x] 分支`/privacy`、回饋說明與公開常量一致：90天、csfishy@gmail.com、長期用途另取得適當同意。
 - [ ] Google描述聯絡資訊需另行重驗；2026-09-29 08:19 UTC匿名GET200的歷史紀錄是90天、cs.sakana@gmail.com、刪除及長期同意，不能當作新地址已對齊。
-- [ ] 將來的完整外部驗收仍核對無強制登入、Email選填、無檔案上傳、無其他填答者摘要及iPhone流程；歷史導覽根因未定，整體FEEDBACK_EXTERNAL_ACCEPTANCE維持PARTIAL。
+- [x] 2026-09-29的Production首頁／錯誤回饋、Google匿名開啟及預填重新驗收PASS；歷史RCA未知保留，摘要管理設定／送出時登入重驗NOT_RUN，沒有新回覆。原始範圍見正式非AI報告，不套用到新信箱或新UI。
 - [ ] 管理者接手90天清理／刪除申請，核對有無Sheets／exports與期限提醒。不是網站自動執行。
-- [x] 本機Privacy／Feedback unit、HTTP、E2E、build與bundle驗證通過；公開Email可在bundle出現，Redis／Provider秘密不可。實際338tests／20E2E與首次E2E失敗保留在[本輪紀錄](privacy-final-gates-2026-09-29.md)。
-- [ ] 另獲發布授權後，將同一已測revision部署並記錄SHA／deployment ID；匿名Production `/privacy`與回饋連結實見新政策，Google外部說明一致。
-- [ ] 僅上述公開部署／政策對齊完成，才將Production `PRIVACY_COMPLETENESS`標PASS。本輪沒有部署，因此保持PARTIAL／PENDING_DEPLOYMENT；這也不等於AI品質、iPhone或PUBLIC_BETA通過。
+- [x] 原始Privacy分支338tests／20E2E及首次失敗／重跑保留在[歷史紀錄](privacy-final-gates-2026-09-29.md)；正式發布前fresh重驗首次PASS見[正式報告](production-privacy-feedback-final-acceptance-2026-09-29.md)。2026-10-01信箱版另有474tests、typecheck、lint、build及Backend CI PASS。
+- [x] 2026-10-01的Production首頁與`/privacy`實見`csfishy@gmail.com`、正確mailto，舊地址未出現；Google新地址對齊尚待獨立確認。
+- [ ] 新信箱版的完整外部對齊與新版本實機重驗；較早Privacy PASS不延伸為AI品質或PUBLIC_BETA重新開放。
 
-本輪本機測試結果與Google設定查核由[目前Beta檢核](public-beta-readiness.md#目前隱私與最終-gates-分支2026-09-29)集中記錄，避免用歷史缺項覆蓋新決策或用本機完成冒充公開生效。
+各階段結果由[目前Beta檢核](public-beta-readiness.md)與[歷史索引](release-evidence-index.md)集中記錄。

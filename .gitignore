@@ -34,3 +34,10 @@ build/
 playwright-report/
 test-results/
 tests/evaluation/runs/
+
+# Local product-video renders and source media
+deliverables/scamshield-video/work/
+deliverables/scamshield-video/__pycache__/
+deliverables/scamshield-video/source/
+deliverables/scamshield-video/*.mp4
+deliverables/scamshield-video/*.wav

@@ -4,8 +4,8 @@
 
 > **目前：Next.js＋TypeScript 的正式 React UI、Node Backend 與 PWA shell 已整合，舊 Blazor Mock 保留作參考。**
 > shared contract v2、圖片驗證、POST /analyze、OpenAI adapter 與本機自動測試已實作。
-> **Production非AI部署已完成，真實分析維持OFF。此分支補齊90天回饋政策、公開Privacy聯絡方式及後續驗收準備，尚未部署。公開Beta仍NOT_READY。**
-> 本機功能、測試、隔離Redis、正式HTTP、AI品質、真機及公開核准分開判定。[目前狀態與第一階段歷史快照](docs/public-beta-readiness.md)集中說明；[第二階段Preview紀錄](docs/preview-acceptance-2026-09-29.md)保留原始結果。Production目前SHA為`5a788a91f7c934667cb8f216bcc393bd164084dd`，`ANALYSIS_ENABLED=false`、runtime=`disabled`。本輪不呼叫真實AI、不部署Production或公開分享；歷史[AI smoke](docs/ai-smoke-2026-09-05.md)不等於本分支品質驗收。
+> **Production已發布新版Privacy／Feedback、手機版UI與公開聯絡信箱 `csfishy@gmail.com`。Public Beta的最新驗收紀錄為PAUSED；重新開放的AI可靠性gate仍未通過。**
+> 2026-10-02文件整理以已發布的`ff64705d9315b65f0b38b7b435997ec46030feb1`為程式基準。[目前狀態](docs/public-beta-readiness.md)與[驗收／事故歷史索引](docs/release-evidence-index.md)區分各版本的結果；後續main提交的部署SHA以平台紀錄為準。最新AI測試記錄的最終狀態為`ANALYSIS_ENABLED=false`、runtime=`disabled`；這次整理不啟用AI。歷史PASS只適用於各報告指定的revision。
 
 ## 產品目標
 
@@ -19,14 +19,14 @@
 
 | 面向 | 目前 Repository | 尚待驗收 |
 | --- | --- | --- |
-| 前端 | Mobile-first React UI；選圖、預覽、Demo／Remote、取消、手動重試與結果呈現 | iOS／Android 實機驗收 |
+| 前端 | Mobile-first React UI；選圖、預覽、Demo／Remote、取消、手動重試與結果呈現；iPhone使用者整體確認PASS | 新版UI的實機重驗；原iPhone逐case／版本明細及Android驗收 |
 | API | Node Route Handler `POST /analyze`；multipart 單圖、strict schema、錯誤映射與 `no-store` | Preview Remote 圖片與平台邊界驗收 |
 | AI | OpenAI Responses adapter＋版本化 prompt；已有一次本機真實圖片 smoke | 完整 development／holdout 品質 gate |
-| PWA | Next.js manifest、icons、Apple metadata、版本化 service worker 與離線備援頁 | 真實裝置安裝、更新與舊版遷移驗收 |
-| 部署 | Production同SHA非AI部署READY；正式HTTP→Redis runtime停用守門有獨立實測證據 | 本分支隱私變更新部署與匿名驗收；目前正式HTTP短窗429仍NOT_RUN |
+| PWA | Next.js manifest、icons、Apple metadata、版本化service worker與離線備援頁；歷史iPhone整體PASS（USER-MANUAL） | 受測SHA／逐case明細；新版更新與舊版遷移重驗 |
+| 部署 | `ff64705` Production部署及GitHub CI成功；首頁／Privacy HTTP200、信箱與mailto驗證通過 | AI重新開放的可靠性gate；正式HTTP限流按revision驗證 |
 | 上傳 | Client／Server 共用 v2 限制：單張 JPEG／PNG，最大 4 MiB | 維持 contract 同步 |
-| 測試 | unit／contract／HTTP integration／E2E、真Redis隔離測試與AI OFF smoke；每階段保留自己的數量／SHA | 本分支新回歸結果、AI品質及iPhone gate |
-| 回饋 | 首頁、成功與錯誤入口；Google表單、Request ID複製；網站公開聯絡更新為`csfishy@gmail.com` | Production部署與匿名驗收、Google說明聯絡資訊重驗、管理者人工清理交接、iPhone實測 |
+| 測試 | `ff64705`的typecheck、lint、474tests、build及Backend CI通過；各階段保留各自數量／SHA | 真AI可靠性與新版iPhone驗收 |
+| 回饋 | 歷史ProductionPrivacy／Feedback非AI驗收PASS；網站已顯示`csfishy@gmail.com` | Google說明新信箱重驗；管理者人工清理及新版本實機重驗 |
 | 防濫用／成本 | Production獨立Redis整合21 checks PASS、HTTP runtime gate PASS；server啟用設定與runtime gate目前都停用 | 正式HTTP429未執行；真Provider費用／品質另行授權 |
 | 會員／內容資料庫／queue | 無；Redis 只存短期額度與控制狀態 | 本次不加入 |
 
@@ -46,8 +46,10 @@ API key 不進 repository；Remote 環境仍須由部署者安全設定憑證與
 | [Deployment Runbook](docs/deployment-runbook.md) | Next.js 初始化、Vercel、PWA 遷移、發布與回復 |
 | [Production Resilience](docs/production-resilience.md) | 5/min、成功額度 reservation、distributed concurrency、circuit breaker 與調整說明 |
 | [Public Beta Readiness](docs/public-beta-readiness.md) | 目前分支／Production分層狀態與保留的第一階段本機證據 |
+| [Release Evidence Index](docs/release-evidence-index.md) | 已歸檔的驗收、失敗、暫停與A/B紀錄；各自適用的revision |
+| [Production Privacy／Feedback Final Acceptance](docs/production-privacy-feedback-final-acceptance-2026-09-29.md) | 2026-09-29正式非AI驗收與原始iPhone整體確認 |
 | [Privacy Operations](docs/privacy-operations.md) | 90天回饋政策、公開Email、刪除申請與管理者人工清理／副本處理 |
-| [iPhone／PWA Acceptance](docs/iphone-pwa-acceptance.md) | 真機操作步驟與證據模板；目前NOT_RUN |
+| [iPhone／PWA Acceptance](docs/iphone-pwa-acceptance.md) | 歷史PASS（USER-MANUAL）及新版本重驗步驟；逐case明細未提供 |
 | [Production AI Quality Plan](docs/production-ai-quality-plan.md) | 五類候選案例、expected behavior、人工覆核與待授權calls／USD；本輪不執行付費AI |
 | [Privacy／Final Gates 2026-09-29](docs/privacy-final-gates-2026-09-29.md) | 本輪分支基準、實際測試數量、Production安全核對與尚待部署項目 |
 | [Preview Acceptance 2026-09-29](docs/preview-acceptance-2026-09-29.md) | 第二階段實際授權、乾淨安裝、隔離 Redis／表單、Preview 部署及匿名 AI OFF 驗收進度 |
@@ -122,9 +124,9 @@ Beta 必要設定詳見 [.env.example](.env.example) 與 [Runbook 第 11 節](do
 
 Google表單只在使用者點選後開啟，可預填Request ID、版本與回饋類型；缺少表單時不使用假連結。一般聯絡、Privacy疑問、回饋刪除或Beta問題可寄至 **csfishy@gmail.com**，Privacy頁提供mailto及複製。這是公開產品資訊，不是secret；表單中的使用者Email仍是選填私人資料。
 
-管理者持有的表單回饋原則最長保存90天，用於排查問題、產品改善與Beta驗收，到期刪除或去識別；長期測試案例須另行取得適當同意。網站沒有自動刪除Google回覆的服務，管理者須依[隱私操作流程](docs/privacy-operations.md)處理Forms、Sheets及匯出副本。網站不自動上傳回饋截圖、不持久保存原圖或完整分析。OpenAI的`store:false`與各平台防濫用／日誌保留不同，不能宣稱全部零留存。分支頁面與本機測試完成仍不代表Production新政策已生效。
+管理者持有的表單回饋原則最長保存90天，用於排查問題、產品改善與Beta驗收，到期刪除或去識別；長期測試案例須另行取得適當同意。網站沒有自動刪除Google回覆的服務，管理者須依[隱私操作流程](docs/privacy-operations.md)處理Forms、Sheets及匯出副本。網站不自動上傳回饋截圖、不持久保存原圖或完整分析。OpenAI的`store:false`與各平台防濫用／日誌保留不同，不能宣稱全部零留存。Production公開信箱已於2026-10-01更新並匿名確認。
 
-本輪Google表單描述經使用者明確核准後更新，2026-09-29 08:19 UTC匿名GET200已確認90天、刪除Email與長期同意說明；沒有新增回覆或更改題目／存取設定。本機完整回歸通過，實際數量及首次E2E失敗／原命令重跑結果見[本輪紀錄](docs/privacy-final-gates-2026-09-29.md)。Production網站尚未部署此分支，因此線上`PRIVACY_COMPLETENESS`仍PARTIAL／PENDING_DEPLOYMENT。
+2026-09-29的Google政策與Production回饋驗收見[正式非AI紀錄](docs/production-privacy-feedback-final-acceptance-2026-09-29.md)，前一分支的E2E失敗／重跑保留在[歷史紀錄](docs/privacy-final-gates-2026-09-29.md)。這些結果當時使用舊信箱；2026-10-01的新信箱部署只重新確認網站首頁與Privacy，Google表單的新信箱對齊仍待獨立確認。
 
 `npm run eval:ai` 預設為不付費 dry-run，真正執行需人工標註與額度授權，
 見[評估操作](tests/evaluation/README.md)與[下一階段有限Production AI計畫](docs/production-ai-quality-plan.md)。最大Provider呼叫數與總USD均待使用者下一輪明確核准，本輪不代填或執行。
@@ -138,7 +140,7 @@ Google表單只在使用者點選後開啟，可預填Request ID、版本與回�
 - Provider timeout 預設 20 秒、application deadline 25 秒、route maxDuration 30 秒。Provider 會依剩餘 API 預算縮短，保留至少 2 秒收尾；增加等待時間不是 retry，每個 request 仍最多呼叫 Provider 一次。既有 Production timeout 環境值須同步更新並重新部署。
 - 應用程式可控回應均為 JSON，包含 `Cache-Control: no-store` 與 `X-Request-Id`。錯誤依情況回 400／413／415／422／429／500／503；非 `POST` 回 405 並標示 `Allow: POST`。
 
-Vercel以`vercel.json`設定Next.js、`npm ci`與`npm run build`。每次部署分別記錄SHA、實際Node／npm、匿名存取及AI OFF結果，不把歷史部署或本機build當作新分支已發布。功能分支push不會觸發目前只監聽`main` push／PR的Backend CI；本輪未授權Production部署。
+Vercel以`vercel.json`設定Next.js、`npm ci`與`npm run build`。main push會觸發GitHub Backend CI與既有Vercel自動部署；每次核對該SHA的結果。影片成品與中間檔保留本機，`.vercelignore`排除整個`deliverables/`。影片來源、字幕及小型海報見[影片文件](deliverables/scamshield-video/README.md)。
 
 ## 限制與未來方向
 
@@ -146,7 +148,7 @@ Vercel以`vercel.json`設定Next.js、`npm ci`與`npm run build`。每次部署�
 - MVP 目前只支援使用者主動選擇／上傳單張 JPEG／PNG；沒有自由文字分析、Web Share Target，亦不會在 iOS／Android 背景持續讀取訊息。
 - 不包含 OCR pipeline、QR／URL scanner、Rule Engine 或 Threat Intelligence。
 - 不包含原生分享／SMS／Notification、會員、分析歷史或回饋內容資料庫；Redis 僅用於額度／租約與執行期停用。
-- Manifest、icons、Apple metadata 與 production service worker 已實作，但 iOS／Android 加入主畫面、更新與舊 Blazor PWA 遷移尚未完成實機驗收。
+- iPhone Safari／PWA曾獲使用者整體PASS（USER-MANUAL）；未提供機型、版本、SHA與逐case明細，不能套用到目前新版UI。Android與舊Blazor PWA遷移仍需實機驗證。
 - Remote 依賴網路與 Provider；離線只提供已快取的 shell／備援頁與可能已載入的 Demo，`/analyze`、圖片及分析結果不進 service worker cache。
 - 模型結果可能誤判；風險分數不是機率，低風險不是安全保證。
 - 應用程式不持久保存截圖，但 Provider／平台保留政策仍需另行確認。

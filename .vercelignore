@@ -1,0 +1,3 @@
+# Repository evidence and local video assets are not part of the web deployment.
+.tools/
+deliverables/

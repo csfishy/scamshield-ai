@@ -1,0 +1,51 @@
+1
+00:00:00,500 --> 00:00:09,428
+A delivery problem. A refund failure. An account warning. It looks familiar — and it wants you to act now.
+
+2
+00:00:09,350 --> 00:00:17,078
+Scammers imitate the brands and moments we trust. One rushed tap can expose passwords, payment details, or an account.
+
+3
+00:00:17,400 --> 00:00:22,159
+Before you tap, pause. The warning signs are often visible.
+
+4
+00:00:22,100 --> 00:00:32,863
+Look for urgency. Unknown senders. Domains that resemble a real service but do not belong to it. And familiar logos or confident wording designed to lower your guard.
+
+5
+00:00:34,800 --> 00:00:41,773
+Meet ScamShield: a mobile-first progressive web app that helps you assess a suspicious message or screenshot before you click.
+
+6
+00:00:43,800 --> 00:00:54,167
+Open ScamShield on your phone, choose a screenshot, and submit it for analysis. The flow is built for the moment that matters: when you are uncertain and need a clearer next step.
+
+7
+00:00:56,500 --> 00:01:05,592
+ScamShield uses A.I.-assisted analysis to examine what is visible in the image, including sender context, wording, links, and signs of impersonation.
+
+8
+00:01:06,500 --> 00:01:15,802
+In seconds, it returns a risk level, a plain-language explanation, the signals that influenced the assessment, and practical guidance for what to do next.
+
+9
+00:01:18,300 --> 00:01:23,084
+You see the risk at a glance, without having to decode every detail yourself.
+
+10
+00:01:25,300 --> 00:01:31,708
+You understand why the message looks suspicious, from sender mismatches to time pressure and payment requests.
+
+11
+00:01:33,000 --> 00:01:41,438
+And you get safer actions: do not tap the link, never share passwords or one-time codes, and verify through the official app or website.
+
+12
+00:01:43,800 --> 00:01:49,913
+ScamShield supports your judgment; it does not replace it. Low risk is never a guarantee.
+
+13
+00:01:50,000 --> 00:01:58,818
+Take a breath. Check the screenshot. Choose the safer next step. ScamShield — Check before you trust.
